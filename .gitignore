@@ -1,1 +1,9 @@
 .csv
+/data
+/workshop_ai
+*.log
+*.tmp
+__pycache__/
+*.pyc
+.env
+.venv
