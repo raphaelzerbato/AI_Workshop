@@ -1,0 +1,15 @@
+
+
+# This is the configuration file for data processing
+
+# This is used to map the constructor names in the dataset to a more standardized format
+make_mask:
+  gmc truck: gmc
+  dodge tk: dodge
+  mazda tk: mazda
+  hyundai tk: hyundai
+  mercedes-b: mercedes-benz
+  chev truck: chevrolet
+  ford tk: ford
+  ford truck: ford
+  vw: volkswagen
