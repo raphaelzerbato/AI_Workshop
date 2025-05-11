@@ -1,37 +1,56 @@
 # %%
 import data_preprocessing as dp
 from data_preprocessing import *
-
-
-# %%
-
-def splitting_data(data:pd.dataframe, Y_var:str)->pd.dataframe:
-    # Splitting the data into train and test sets
-    X = data.drop(columns=[Y_var])
-    y = data[Y_var]
-    # Split into train and test sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    return X_train, X_test, y_train, y_test 
-
-
+import pandas as pd
+import yaml
+from sklearn.model_selection import train_test_split
 
 # %%
 if __name__ == "__main__":
 
     # %%    
+    """
+    load data and config
+    """
     # Load data and config
     cars_file_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/data/data_cars/car_prices.csv'
     population_file_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/data/data_cars/states_populations_yr2015.csv'
 
-    cars_db         = dp.load_data(cars_file_path)
-    population_db   = dp.load_data(population_file_path)
+    cars_db         = load_data(cars_file_path)
+    population_db   = load_data(population_file_path)
     
     # Load config
-    config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/config.yaml'
-    config = dp.load_config(config_path)
+    model_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/model_config.yaml'
+    model_config = load_config(model_config_path)
 
+    data_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/data_config.yaml'
+    data_config = load_config(data_config_path)
 
     # %%
+    """
+    process dates and define markets
+    """
+    # Process dates 
+    df = dp.process_dates(cars_db)
+
+    # Define markets
+    df = dp.define_market(df, 
+        market_vars=['sellingyear','sellingmonth','state'],
+        market_label='market',
+        market_code='marketid',
+        minsize=20)
+
+    # preprocess color and interior
+    df = dp.preprocess_color_interior(df)    
+
+    # exctract variables of intrest
+    df = dp.subset_var_of_interest(df,
+    data_config['var_of_interest']['numerical']+ data_config['var_of_interest']['unordered'], 
+    marketvar='marketid', productvar='make')
+    
+    # %%
+    
+
     # Preprocess data
     X_train, X_test, y_train, y_test = splitting_data(cars_db, 'price')
     
