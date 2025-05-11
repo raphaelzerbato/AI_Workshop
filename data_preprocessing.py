@@ -11,6 +11,7 @@ import statsmodels.api as sm
 #from linearmodels.iv import IV2SLS
 import seaborn as sns
 from itertools import product
+import yaml
 
 
 def load_data(file_path) -> pd.DataFrame:
@@ -33,6 +34,18 @@ def load_data(file_path) -> pd.DataFrame:
         raise ValueError("Unsupported file format. Please provide a .csv, .json, or .xlsx file.")
     return data
 
+def load_config(config_path: str) -> dict:
+    """
+    Load configuration from a YAML file.
+
+    Args:
+        config_path (str): Path to the YAML configuration file.
+
+    Returns:
+        dict: Configuration dictionary.
+    """
+    with open(config_path, 'r') as file:
+        return yaml.safe_load(file)
 
 def process_dates(data) -> pd.DataFrame:
     """
@@ -201,14 +214,14 @@ def change_to_numerical(data, numerical):
         df[var] = df[var].astype('float')    
     return df
 
-def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productvar='make'):
+def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productvar='make', DropNa=True):
     """
     Subset the data to keep only the variables of interest
     """
     df = data.copy()
     print('\nNumber of missing per relevant variable in the remaining dataframe \n', np.sum(df.isna(), axis=0))
     print(f"\nA total of {np.sum(np.any(df.isna(), axis=1))} rows with missing data in relevant variables have been dropped \n")
-    if dropna:
+    if DropNa:
         df = df.dropna()
     df = df[[marketvar, productvar] + var_of_interest]
     return df

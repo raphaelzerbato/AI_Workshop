@@ -58,7 +58,7 @@ def load_config(config_path: str) -> dict:
 """
 Treating the data function
 """
-def splitting_data(data:pd.dataframe, Y_var:str)->pd.dataframe:
+def splitting_data(data:pd.DataFrame, Y_var:str)->pd.DataFrame:
     # Splitting the data into train and test sets
     X = data.drop(columns=[Y_var])
     y = data[Y_var]
