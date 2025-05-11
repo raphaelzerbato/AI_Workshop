@@ -1,17 +1,16 @@
 """
 Functions for loading and preprocessing car data.
-""""
+"""
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers, Input
+# import tensorflow as tf
+# from tensorflow import keras
+# from tensorflow.keras import layers, Input
 import statsmodels.api as sm
-from linearmodels.iv import IV2SLS
+#from linearmodels.iv import IV2SLS
 import seaborn as sns
 from itertools import product
-
 
 
 def load_data(file_path) -> pd.DataFrame:
@@ -94,8 +93,7 @@ def define_market(data, market_vars, market_label='market', market_code='marketi
 
     df = df[df['market'].isin(selected_markets)]
 
-    print(f"\n{nb_droppedmarkets} markets with sizes lower than {minsize} have been dropped; 
-    making {nb_droppedrows} dropped rows \n")
+    print(f"\n{nb_droppedmarkets} markets with sizes lower than {minsize} have been dropped making {nb_droppedrows} dropped rows \n")
 
     idmarket_mask = dict([(i, selected_markets[i]) for i in range(len(selected_markets))])
     marketid_mask = dict([(selected_markets[i], i) for i in range(len(selected_markets))])
@@ -122,21 +120,20 @@ def recode_categories(series, replacement_mask=dict(),  min_frequency=10000) -> 
     popular_values = set(frequencies[frequencies>= min_frequency].index)-{''}
     s = s.map(lambda x: x if x in popular_values else 'other')
     return s
-
+ 
 def order_unorder_categorical_var(data, dropna=True, ordered=[], unordered=[], 
                                ordered_masks=dict(), unordered_masks=dict(), 
                                ordered_min_frequencies=dict(), unordered_min_frequencies=dict()) -> pd.DataFrame:
     """
     Extract and process relevant variables
     Args:
-        - data (pd.DataFrame): shouldcontaain a 'state' column
-        - numerical, ordered, unordered (list of str): the names of relevant columns that will be set as numerical, ordered categorical and unordered categorical 
+        - data (pd.DataFrame): should contain a 'state' column
+        - ordered, unordered (list of str): the names of relevant columns that will be set as ordered categorical and unordered categorical 
         - ordered_masks, unordered_masks (dict of dict): dictionaries of replacement masks to be used as arguments in the recode_categories function for each relevant categorical variable
-        - ordered_min_frequencies, unordered_min_frequencies (dict of int): dictionaries that provides the min_frequency argument for the recode_categories function for each relevant categorical variable
+        - ordered_min_frequencies, unordered_min_frequencies (dict of int): dictionaries that provide the min_frequency argument for the recode_categories function for each relevant categorical variable
 
     Returns:
         - pd.DataFrame: contains the provided relevant columns along with marketvar and productvar columns
-    
     """
     df = data.copy()    
 
@@ -147,11 +144,44 @@ def order_unorder_categorical_var(data, dropna=True, ordered=[], unordered=[],
         df[var] = pd.Categorical(df[var], ordered=True)
 
     for var in unordered:
-          df[var] = recode_categories(
-            df[var], replacement_mask=ordered_masks[var], min_frequency=ordered_min_frequencies[var]
+        df[var] = recode_categories(
+            df[var], replacement_mask=unordered_masks[var], min_frequency=unordered_min_frequencies[var]
         )
         df[var] = pd.Categorical(df[var], ordered=False)
     return df
+
+def one_hot_encoder(data, categorical, exog, endog):
+    """
+    One-hot encode categorical variables and updates the list of
+    endogenous and exogenous variables with the dummies and removes the main category keeping track 
+    of it with excluded_main_categories.
+    """
+    df = data.copy()
+    excluded_main_categories = []
+    for var in categorical:
+        # Identify the most populated category for the variable
+        main_category = data[var].value_counts().idxmax()
+        excluded_main_categories.append(main_category)
+        # One-hot encode the variable
+        encoded_df = pd.get_dummies(data[var], prefix=var, drop_first=True)
+
+        # Remove the column corresponding to the main category
+        main_category_column = f"{var}_{main_category}"
+
+        encoded_df = encoded_df.drop(columns=[main_category_column])
+
+        # Add the remaining encoded columns to the main dataframe
+        df = pd.concat([df, encoded_df], axis=1)
+        
+        # Update exog and endog variables
+        dummy_var = list(set(df.columns) - set(data.columns))
+        if var in exog:
+            exog.remove(var)
+            exog = exog + dummy_var
+        if var in endog:   
+            endog.remove(var)
+            endog = endog + dummy_var
+    return df, endog, exog, excluded_main_categories
 
 def preprocess_color_interior(df):
     """
@@ -167,7 +197,7 @@ def change_to_numerical(data, numerical):
     Change the type of the variables in numerical to float
     """
     df = data.copy()
-      for var in numerical:
+    for var in numerical:
         df[var] = df[var].astype('float')    
     return df
 
@@ -241,3 +271,80 @@ def get_non_collinear_instruments(Z, X_exog = None, tol=1e-10):
 
     return Z[keep], keep
 
+def compute_market_shares(df, pop_df, marketvar, productvar):
+    """
+    Compute market shares and related variables.
+    """
+    outsideoption_df = df[[marketvar, 'state', 'sales']].groupby(
+        by=[marketvar, 'state'], observed=True
+    ).sum().reset_index().rename({'sales': 'allsales'}, axis=1)
+    pop_df = pop_df.merge(outsideoption_df, on='state')
+    df = pop_df.merge(df, on=[marketvar, 'state'])
+    df['share'] = df['sales'] / df['population (2015)']
+    df['share_oo'] = 1 - (df['allsales'] / df['population (2015)'])
+    df['log_share_ratio'] = np.log(df['share'] / df['share_oo'])
+    return df
+
+
+def extract_instruments(df, exogvars, marketvar, twodegree_polynomial_instruments):
+    """
+    Extract instruments for the model.
+    """
+    if not twodegree_polynomial_instruments:
+        Z = df[[marketvar] + exogvars].groupby([marketvar]).apply(
+            lambda x: x.assign(**dict(
+                [('Nb_RivalProducts', x.shape[0] - 1)] +
+                [(var + '_RivalProducts', x[var].sum() - x[var]) for var in exogvars]
+            )), include_groups=False
+        ).reset_index(drop=True).drop(exogvars, axis=1)
+    else:
+        Z = df[[marketvar] + exogvars].groupby([marketvar]).apply(
+            lambda x: x.assign(**dict(
+                [('Nb_RivalProducts', x.shape[0] - 1)] +
+                [(var + '_RivalProducts', x[var].sum() - x[var]) for var in exogvars] +
+                [(var1 + '*' + var2 + '_RivalProducts', (x[var1] * x[var2]).sum() - x[var1] * x[var2])
+                 for var1, var2 in list(product(exogvars, repeat=2))]
+            )), include_groups=False
+        ).reset_index(drop=True).drop(exogvars, axis=1)
+    return Z
+
+
+def aggregate_data(data, pop_data, marketvar='marketid', productvar='make', twodegree_polynomial_instruments=False,
+                   aggfunc='mean', numerical=[], categorical=[], dep=[], endog=[], exog=[]):
+    """
+    Aggregate the data at (market, product)-level.
+    """
+    df = data[[marketvar, productvar, 'state'] + numerical].copy()
+    pop_df = pop_data.copy()
+    # Extract categories and initialize variables
+    excluded_main_categories = []
+    
+    for var in categorical:
+        results = one_hot_encoder(df, var, exog, endog)
+        df = results[0]; endogvars = endogvars + results[1]; exogvars = exogvars + results[2]
+        excluded_main_categories = excluded_main_categories.append(results[3])  
+
+    # Aggregate data and compute sales
+    df = df.groupby([marketvar, productvar, 'state'], observed=True).agg(aggfunc).reset_index()
+    df['sales'] = data.groupby([marketvar, productvar, 'state'], observed=True).size().values
+
+    # Process population data and compute market shares
+    pop_df['population (2015)'] = pop_df['population (2015)'].map(lambda x: x.replace(',', '')).astype('float')
+    df = compute_market_shares(df, pop_df, marketvar, productvar)
+
+    # Update dependent variables
+    depvars += ['population (2015)', 'allsales', 'share_oo', 'sales', 'share', 'log_share_ratio']
+
+    # Extract instruments
+    Z = extract_instruments(df, exogvars, marketvar, twodegree_polynomial_instruments)
+
+    # Reduce instruments to collinearity-proof instruments
+    Z, instrvars = get_non_collinear_instruments(Z, df[exogvars])
+
+    # Finalize the dataframe
+    df = df[[marketvar, productvar, 'state'] + depvars + endogvars + exogvars].reset_index(drop=True).join(Z.reset_index(drop=True))
+
+    return df, depvars, endogvars, exogvars, instrvars, excluded_main_categories    
+
+
+    
