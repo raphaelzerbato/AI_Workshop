@@ -13,3 +13,106 @@ make_mask:
   ford tk: ford
   ford truck: ford
   vw: volkswagen
+
+# This is used to map the body types in the dataset to a more standardized format
+body_type_map:
+  # suvs
+  suv: suv      
+  # sedans
+  sedan: sedan
+  g sedan: sedan
+  elantra coupe: sedan
+  # coupes
+  coupe: coupe
+  g coupe: coupe
+  genesis coupe: coupe
+  cts coupe: coupe
+  koup: coupe
+  cts-v coupe: coupe
+  g37 coupe: coupe
+  q60 coupe: coupe
+  # convertibles
+  convertible: convertible
+  g convertible: convertible
+  g37 convertible: convertible
+  q60 convertible: convertible
+  beetle convertible: convertible
+  granturismo convertible: convertible
+  # wagons
+  wagon: wagon
+  cts wagon: wagon
+  tsx sport wagon: wagon
+  cts-v wagon: wagon
+  # hatchbacks
+  hatchback: hatchback
+  # vans / minivans
+  minivan: van
+  van: van
+  e-series van: van
+  promaster cargo van: van
+  ram van: van
+  transit van: van
+  # pickup trucks - cab variants
+  crew cab: pickup
+  double cab: pickup
+  crewmax cab: pickup
+  access cab: pickup
+  king cab: pickup
+  supercrew: pickup
+  extended cab: pickup
+  supercab: pickup
+  regular cab: pickup
+  regular-cab: pickup
+  quad cab: pickup
+  club cab: pickup
+  xtracab: pickup
+  mega cab: pickup
+  cab plus: pickup
+  cab plus 4: pickup
+
+# Prepare minimum frequencies for the extract_relevant_variables function
+frequencies:
+  make_freq: 1
+  body_freq: 10000
+  year_freq: 1
+  color_freq: 10000
+  interior_freq: 10000
+
+# 
+unordered_masks:
+  year: year_mask
+  make: make_mask
+  body: body_mask
+  color: color_mask
+  interior: interior_mask
+
+unordered_minfreq:
+  year: 1
+  make: 10000
+  body: 1
+  color: 10000
+  interior: 10000
+
+var_of_interest:
+  numerical:
+    - 'sellingprice'
+    - 'odometer'
+    - 'condition'
+  unordered:
+    - year
+    - make
+    - body
+    - color
+    - interior
+  endog :
+    - 'sellingprice'
+  exog:
+    - 'odometer'
+    - 'condition'
+    - year
+    - make
+    - body
+    - color
+    - interior
+    
+
