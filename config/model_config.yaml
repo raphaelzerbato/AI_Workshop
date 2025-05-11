@@ -33,3 +33,4 @@ catboost:
   loss_function: Logloss
   verbose: 0
   random_seed: 42
+  
