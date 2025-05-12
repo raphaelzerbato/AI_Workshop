@@ -94,6 +94,10 @@ unordered_minfreq:
   interior: 10000
 
 var_of_interest:
+  marketvar:
+    - 'marketid'
+  productvar:
+    - 'make'
   numerical:
     - 'sellingprice'
     - 'odometer'
