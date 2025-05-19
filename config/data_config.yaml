@@ -79,6 +79,10 @@ frequencies:
   interior_freq: 10000
 
 # 
+ordered_masks: []
+
+ordered_min_frequencies: {}
+
 unordered_masks:
   year: year_mask
   make: make_mask
@@ -86,7 +90,7 @@ unordered_masks:
   color: color_mask
   interior: interior_mask
 
-unordered_minfreq:
+unordered_min_frequencies:
   year: 1
   make: 10000
   body: 1
@@ -102,9 +106,10 @@ var_of_interest:
     - 'sellingprice'
     - 'odometer'
     - 'condition'
+  ordered:
   unordered:
     - year
-    - make
+    - make  
     - body
     - color
     - interior

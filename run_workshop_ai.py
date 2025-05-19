@@ -48,6 +48,28 @@ if __name__ == "__main__":
     data_config['var_of_interest']['numerical']+ data_config['var_of_interest']['unordered'], 
     marketvar='marketid', productvar='make')
     
+    # preprocess color and interior
+    df = preprocess_color_interior(df)
+
+    # %%
+    # preprocess categorical variables
+    df = treat_categories(
+        df, 
+        variable = data_config['var_of_interest']['ordered'],
+        masks=data_config['ordered_masks'],
+        min_frequencies=data_config['ordered_min_frequencies'], 
+        order_serie = True
+        )
+
+    df = treat_categories(
+        df,
+        variable=data_config['var_of_interest']['unordered'],
+        masks=data_config['unordered_masks'], 
+        min_frequencies=data_config['unordered_min_frequencies'], 
+        order_serie = False
+        )
+        
+    
     # %%
     
 
