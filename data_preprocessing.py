@@ -114,53 +114,52 @@ def define_market(data, market_vars, market_label='market', market_code='marketi
     df['marketid'] = df['market'].map(marketid_mask)
     return df
 
-def recode_categories(series, replacement_mask=dict(),  min_frequency=10000) -> pd.Series:
+
+def recode_categories(series:pd.Series, replacement_mask=dict(), min_frequency=10000, ordered_serie= True) -> pd.DataFrame:
     """
     recode values of a series of strings
-    
     Args:
-        - series (pd.Series): series of strings in lower cases.
+        - data (pd.DataFrame): dataframe containing the series to be recoded
+        - var (str): name of the column to be recoded
         - replacement_mask (dict): a dictionary that maps some values to be replaced to their new values
         - min_frequency (int): minimum frequency per category to allow
                         all values with a lower frequency will be recoded as 'other'
-    Returns:
-        - pd.Series
+    Returns: pd.DataFrame
     """
-    s = series.copy()        
+    s = series.copy()     
     s = s.replace(replacement_mask)
     s = s.map(lambda x: str(x).lower())
     frequencies = s.value_counts()
+
     popular_values = set(frequencies[frequencies>= min_frequency].index)-{''}
     s = s.map(lambda x: x if x in popular_values else 'other')
+    s = pd.Categorical(s, ordered = ordered_serie)
     return s
- 
-def order_unorder_categorical_var(data, dropna=True, ordered=[], unordered=[], 
-                               ordered_masks=dict(), unordered_masks=dict(), 
-                               ordered_min_frequencies=dict(), unordered_min_frequencies=dict()) -> pd.DataFrame:
+    
+
+def treat_categories(data, variable=[], masks=dict(), min_frequencies=dict(), order_serie=True) -> pd.DataFrame:
     """
     Extract and process relevant variables
     Args:
         - data (pd.DataFrame): should contain a 'state' column
-        - ordered, unordered (list of str): the names of relevant columns that will be set as ordered categorical and unordered categorical 
-        - ordered_masks, unordered_masks (dict of dict): dictionaries of replacement masks to be used as arguments in the recode_categories function for each relevant categorical variable
-        - ordered_min_frequencies, unordered_min_frequencies (dict of int): dictionaries that provide the min_frequency argument for the recode_categories function for each relevant categorical variable
+        - variable (list of str): the names of relevant columns to process
+        - masks (dict of dict): dictionaries of replacement masks to be used as arguments in the recode_categories function for each relevant categorical variable
+        - min_frequencies (dict of int): dictionaries that provide the min_frequency argument for the recode_categories function for each relevant categorical variable
+        - order_serie (bool): whether to set the resulting categories as ordered
 
     Returns:
         - pd.DataFrame: contains the provided relevant columns along with marketvar and productvar columns
     """
-    df = data.copy()    
+    if not variable:  # Check if variable list is empty
+        return data  # Do nothing and return the original data
 
-    for var in ordered:
+    df = data.copy()
+    # Extract relevant variables
+    for var in variable:
         df[var] = recode_categories(
-            df[var], replacement_mask=ordered_masks[var], min_frequency=ordered_min_frequencies[var]
+            df[var], replacement_mask=masks.get(var, {}), min_frequency=min_frequencies.get(var, 0), ordered_serie=order_serie
         )
-        df[var] = pd.Categorical(df[var], ordered=True)
 
-    for var in unordered:
-        df[var] = recode_categories(
-            df[var], replacement_mask=unordered_masks[var], min_frequency=unordered_min_frequencies[var]
-        )
-        df[var] = pd.Categorical(df[var], ordered=False)
     return df
 
 def one_hot_encoder(data, categorical, exog, endog):
@@ -218,12 +217,15 @@ def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productv
     """
     Subset the data to keep only the variables of interest
     """
+    # Ensure no duplicate names in the list
+    relevant_vars = list(dict.fromkeys([marketvar, productvar] + var_of_interest))
+    
     df = data.copy()
     print('\nNumber of missing per relevant variable in the remaining dataframe \n', np.sum(df.isna(), axis=0))
     print(f"\nA total of {np.sum(np.any(df.isna(), axis=1))} rows with missing data in relevant variables have been dropped \n")
     if DropNa:
         df = df.dropna()
-    df = df[[marketvar, productvar] + var_of_interest]
+    df = df[relevant_vars]
     return df
 
 
