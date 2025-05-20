@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 import statsmodels.api as sm
 #from linearmodels.iv import IV2SLS
 import seaborn as sns
-from itertools import product
+from itertools import product, combinations_with_replacement
 import yaml
 
 
@@ -74,7 +74,7 @@ def process_dates(data) -> pd.DataFrame:
     df['sellingweek'] = df['saledate'].map(lambda x: x.isocalendar().week)
     return df
 
-def define_market(data, market_vars, market_label='market', market_code='marketid', minsize=20) -> pd.DataFrame:
+def define_market(data, market_vars, market_label='market', market_code='marketid', minsize=20, DropSmallMarkets=True) -> pd.DataFrame:
     """
     Build two new column (marketid, market) for the market IDs
     
@@ -97,17 +97,16 @@ def define_market(data, market_vars, market_label='market', market_code='marketi
         df['market'] = df['market'] + '_' + df[var].astype('str')
 
     markets_tab = df['market'].value_counts()
-
-    selected_markets = markets_tab.iloc[np.where(markets_tab>=minsize)].index
-
-    nb_droppedmarkets = np.sum(~(markets_tab>=minsize))
-
-    nb_droppedrows = np.sum(~df['market'].isin(selected_markets))
-
-    df = df[df['market'].isin(selected_markets)]
-
-    print(f"\n{nb_droppedmarkets} markets with sizes lower than {minsize} have been dropped making {nb_droppedrows} dropped rows \n")
-
+    
+    if DropSmallMarkets:
+        selected_markets = markets_tab[markets_tab>=minsize].index
+        nb_droppedmarkets = np.sum(~(markets_tab>=minsize))
+        nb_droppedrows = np.sum(~df['market'].isin(selected_markets))
+        df = df[df['market'].isin(selected_markets)]
+        print(f"\n{nb_droppedmarkets} markets with sizes lower than {minsize} have been dropped making {nb_droppedrows} dropped rows \n")
+    else:
+        selected_markets = markets_tab.index
+    
     idmarket_mask = dict([(i, selected_markets[i]) for i in range(len(selected_markets))])
     marketid_mask = dict([(selected_markets[i], i) for i in range(len(selected_markets))])
     
@@ -126,15 +125,15 @@ def recode_categories(series, replacement_mask=dict(),  min_frequency=10000) -> 
     Returns:
         - pd.Series
     """
-    s = series.copy()        
+    s = series.copy()
+    s = s.astype('string').str.lower()
     s = s.replace(replacement_mask)
-    s = s.map(lambda x: str(x).lower())
     frequencies = s.value_counts()
     popular_values = set(frequencies[frequencies>= min_frequency].index)-{''}
-    s = s.map(lambda x: x if x in popular_values else 'other')
+    s = s.map(lambda x: x if pd.isna(x) or x in popular_values else 'other')
     return s
  
-def order_unorder_categorical_var(data, dropna=True, ordered=[], unordered=[], 
+def order_unorder_categorical_var(data, ordered=[], unordered=[], 
                                ordered_masks=dict(), unordered_masks=dict(), 
                                ordered_min_frequencies=dict(), unordered_min_frequencies=dict()) -> pd.DataFrame:
     """
@@ -176,7 +175,7 @@ def one_hot_encoder(data, categorical, exog, endog):
         main_category = data[var].value_counts().idxmax()
         excluded_main_categories.append(main_category)
         # One-hot encode the variable
-        encoded_df = pd.get_dummies(data[var], prefix=var, drop_first=True)
+        encoded_df = pd.get_dummies(data[var], prefix=var, drop_first=False)
 
         # Remove the column corresponding to the main category
         main_category_column = f"{var}_{main_category}"
@@ -187,13 +186,14 @@ def one_hot_encoder(data, categorical, exog, endog):
         df = pd.concat([df, encoded_df], axis=1)
         
         # Update exog and endog variables
-        dummy_var = list(set(df.columns) - set(data.columns))
+        dummy_var = list(encoded_df.columns)
         if var in exog:
             exog.remove(var)
             exog = exog + dummy_var
         if var in endog:   
             endog.remove(var)
             endog = endog + dummy_var
+            
     return df, endog, exog, excluded_main_categories
 
 def preprocess_color_interior(df):
@@ -202,7 +202,7 @@ def preprocess_color_interior(df):
     """
     for var in ['color', 'interior']:
         if var in df.columns:
-            df[var].replace({'—':np.nan})  
+            df[var] = df[var].replace({'—':pd.NA})
     return df     
 
 def change_to_numerical(data, numerical):
@@ -219,11 +219,15 @@ def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productv
     Subset the data to keep only the variables of interest
     """
     df = data.copy()
+    var_list = var_of_interest.copy()
+    for var in [marketvar, productvar]:
+        if var in var_of_interest:
+            var_list.remove(var)
+    df = df[[marketvar, productvar] + var_list]
     print('\nNumber of missing per relevant variable in the remaining dataframe \n', np.sum(df.isna(), axis=0))
-    print(f"\nA total of {np.sum(np.any(df.isna(), axis=1))} rows with missing data in relevant variables have been dropped \n")
     if DropNa:
+        print(f"\nA total of {np.sum(np.any(df.isna(), axis=1))} rows with missing data in relevant variables have been dropped \n")
         df = df.dropna()
-    df = df[[marketvar, productvar] + var_of_interest]
     return df
 
 
@@ -293,32 +297,53 @@ def compute_market_shares(df, pop_df, marketvar, productvar):
     ).sum().reset_index().rename({'sales': 'allsales'}, axis=1)
     pop_df = pop_df.merge(outsideoption_df, on='state')
     df = pop_df.merge(df, on=[marketvar, 'state'])
-    df['share'] = df['sales'] / df['population (2015)']
-    df['share_oo'] = 1 - (df['allsales'] / df['population (2015)'])
+    df['share'] = df['sales'] / df['households (2015)']
+    df['share_oo'] = 1 - (df['allsales'] / df['households (2015)'])
     df['log_share_ratio'] = np.log(df['share'] / df['share_oo'])
     return df
 
 
 def extract_instruments(df, exogvars, marketvar, twodegree_polynomial_instruments):
     """
-    Extract instruments for the model.
+    Extract instruments for the model:
+        - compute sum of polynomial basis functions of rival products' characteristics in exogvars.
     """
-    if not twodegree_polynomial_instruments:
-        Z = df[[marketvar] + exogvars].groupby([marketvar]).apply(
-            lambda x: x.assign(**dict(
-                [('Nb_RivalProducts', x.shape[0] - 1)] +
-                [(var + '_RivalProducts', x[var].sum() - x[var]) for var in exogvars]
-            )), include_groups=False
-        ).reset_index(drop=True).drop(exogvars, axis=1)
-    else:
-        Z = df[[marketvar] + exogvars].groupby([marketvar]).apply(
-            lambda x: x.assign(**dict(
-                [('Nb_RivalProducts', x.shape[0] - 1)] +
-                [(var + '_RivalProducts', x[var].sum() - x[var]) for var in exogvars] +
-                [(var1 + '*' + var2 + '_RivalProducts', (x[var1] * x[var2]).sum() - x[var1] * x[var2])
-                 for var1, var2 in list(product(exogvars, repeat=2))]
-            )), include_groups=False
-        ).reset_index(drop=True).drop(exogvars, axis=1)
+
+    X = df[exogvars].values
+    Z = pd.DataFrame(index=df.index)
+
+    # Basic group sums
+    group_sum = df.groupby(marketvar)[exogvars].transform('sum')
+    group_size = df.groupby(marketvar)[exogvars[0]].transform('count')
+    Z['Nb_RivalProducts'] = group_size - 1
+
+    for i, var in enumerate(exogvars):
+        Z[f'{var}_RivalProducts'] = group_sum[var] - df[var]
+
+    if twodegree_polynomial_instruments:
+        # Step 1: compute outer products for all rows
+        # Result: (n_samples, n_combinations)
+        combs = list(combinations_with_replacement(range(len(exogvars)), 2))
+        n_combs = len(combs)
+        prod_matrix = np.empty((len(df), n_combs))
+
+        for k, (i, j) in enumerate(combs):
+            prod_matrix[:, k] = X[:, i] * X[:, j]
+
+        # Step 2: attach to DataFrame for groupby
+        prod_df = pd.DataFrame(prod_matrix, columns=[f'{exogvars[i]}*{exogvars[j]}' for i, j in combs], index=df.index)
+        prod_df[marketvar] = df[marketvar].values
+
+        # Step 3: groupby sum once
+        group_prod_sum = prod_df.groupby(marketvar).transform('sum')
+        prod_df.drop(columns=marketvar, inplace=True)
+
+        # Step 4: rival = group sum - own value
+        rival_prod = group_prod_sum - prod_df
+        # Rename columns
+        rival_prod.columns = [col + '_RivalProducts' for col in rival_prod.columns]
+
+        Z = pd.concat([Z, rival_prod], axis=1)
     return Z
 
 
@@ -327,26 +352,32 @@ def aggregate_data(data, pop_data, marketvar='marketid', productvar='make', twod
     """
     Aggregate the data at (market, product)-level.
     """
-    df = data[[marketvar, productvar, 'state'] + numerical].copy()
+    df = data[[marketvar, productvar, 'state'] + dep + endog + exog].copy()
     pop_df = pop_data.copy()
-    # Extract categories and initialize variables
-    excluded_main_categories = []
+
+    depvars = dep
     
-    for var in categorical:
-        results = one_hot_encoder(df, var, exog, endog)
-        df = results[0]; endogvars = endogvars + results[1]; exogvars = exogvars + results[2]
-        excluded_main_categories = excluded_main_categories.append(results[3])  
+    # Extract categories and initialize variables
+    results = one_hot_encoder(df, categorical, exog, endog)
+    df = results[0]; endogvars = results[1]; exogvars = results[2]
+    excluded_main_categories = results[3]
+
+    # Drop columns that have corresponding one-hot-encodings (keep the state and make columns)
+    df = df.drop(columns=set(categorical)-{'state','make'})
+
+    # Extract the variables that we need
+    df = df[[marketvar, productvar, 'state'] + dep + endogvars + exogvars]
 
     # Aggregate data and compute sales
     df = df.groupby([marketvar, productvar, 'state'], observed=True).agg(aggfunc).reset_index()
     df['sales'] = data.groupby([marketvar, productvar, 'state'], observed=True).size().values
 
-    # Process population data and compute market shares
-    pop_df['population (2015)'] = pop_df['population (2015)'].map(lambda x: x.replace(',', '')).astype('float')
+    # Process households data and compute market shares
+    pop_df['households (2015)'] = pop_df['households (2015)'].astype('string').str.replace(',', '').astype('float')
     df = compute_market_shares(df, pop_df, marketvar, productvar)
 
     # Update dependent variables
-    depvars += ['population (2015)', 'allsales', 'share_oo', 'sales', 'share', 'log_share_ratio']
+    depvars += ['households (2015)', 'allsales', 'share_oo', 'sales', 'share', 'log_share_ratio']
 
     # Extract instruments
     Z = extract_instruments(df, exogvars, marketvar, twodegree_polynomial_instruments)
