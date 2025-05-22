@@ -162,7 +162,47 @@ def treat_categories(data, variable=[], masks=dict(), min_frequencies=dict(), or
 
     return df
 
-def one_hot_encoder(data, categorical, exog, endog):
+# def one_hot_encoder(data, categorical):#, exog, endog):
+#     """
+#     One-hot encode categorical variables and updates the list of
+#     endogenous and exogenous variables with the dummies and removes the main category keeping track 
+#     of it with excluded_main_categories.
+#     """
+#     df = data.copy()
+#     excluded_main_categories = []
+#     for var in categorical:
+#         # Identify the most populated category for the variable
+#         main_category = data[var].value_counts().idxmax()
+#         excluded_main_categories.append(main_category)
+#         # One-hot encode the variable
+#         encoded_df = pd.get_dummies(data[var], prefix=var, drop_first=True)
+
+#         # Remove the column corresponding to the main category
+#         main_category_column = f"{var}_{main_category}"
+
+#         encoded_df = encoded_df.drop(columns=[main_category_column])
+
+#         # Add the remaining encoded columns to the main dataframe
+#         df = pd.concat([df, encoded_df], axis=1)
+        
+#         # Update exog and endog variables
+#         dummy_var = list(set(df.columns) - set(data.columns))
+#         if var in exog:
+#             exog.remove(var)
+#             exog = exog + dummy_var
+#         if var in endog:   
+#             endog.remove(var)
+#             endog = endog + dummy_var
+#     return df, endog, exog, excluded_main_categories
+
+
+def get_categorical_intersections(config):
+    cat_vars = config['var_of_interest']['categorical']
+    exo_cats = list(set(config['var_of_interest']['exog']) & set(cat_vars))
+    endo_cats = list(set(config['var_of_interest']['endog']) & set(cat_vars))
+    return exo_cats, endo_cats
+
+def one_hot_encoder(data, categorical):#, exog, endog):
     """
     One-hot encode categorical variables and updates the list of
     endogenous and exogenous variables with the dummies and removes the main category keeping track 
@@ -170,16 +210,17 @@ def one_hot_encoder(data, categorical, exog, endog):
     """
     df = data.copy()
     excluded_main_categories = []
+    added_dummies = []
     for var in categorical:
         # Identify the most populated category for the variable
+        print(var)
         main_category = data[var].value_counts().idxmax()
         excluded_main_categories.append(main_category)
         # One-hot encode the variable
-        encoded_df = pd.get_dummies(data[var], prefix=var, drop_first=True)
+        encoded_df = pd.get_dummies(df[var], prefix=var, drop_first=False)
 
         # Remove the column corresponding to the main category
         main_category_column = f"{var}_{main_category}"
-
         encoded_df = encoded_df.drop(columns=[main_category_column])
 
         # Add the remaining encoded columns to the main dataframe
@@ -187,13 +228,10 @@ def one_hot_encoder(data, categorical, exog, endog):
         
         # Update exog and endog variables
         dummy_var = list(set(df.columns) - set(data.columns))
-        if var in exog:
-            exog.remove(var)
-            exog = exog + dummy_var
-        if var in endog:   
-            endog.remove(var)
-            endog = endog + dummy_var
-    return df, endog, exog, excluded_main_categories
+        
+        added_dummies.extend(dummy_var)
+
+    return df, added_dummies, excluded_main_categories
 
 def preprocess_color_interior(df):
     """
