@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     # Define markets
     df = dp.define_market(df, 
-        market_vars=['sellingyear','sellingmonth','state'],
+        market_vars=data_config['var_of_interest']['marketvar'],
         market_label='market',
         market_code='marketid',
         minsize=20)
@@ -69,10 +69,23 @@ if __name__ == "__main__":
         order_serie = False
         )
         
+    # %%
+    # one hot encoding of the categorical variables
+    exo_cats, endo_cats = get_categorical_intersections(data_config)
     
+    endogenous_var = data_config['var_of_interest']['endog']
+    exogenous_var = data_config['var_of_interest']['exog']
+
+    df, added_exo_dummies, excluded_exo_main = one_hot_encoder(df, exo_cats)
+    df, added_endo_dummies, excluded_endo_main = one_hot_encoder(df, endo_cats)
+
+    endogenous_var.extend(added_endo_dummies)
+    exogenous_var.extend(added_exo_dummies)
+
     # %%
     
 
+    # %%
     # Preprocess data
     X_train, X_test, y_train, y_test = splitting_data(cars_db, 'price')
     
