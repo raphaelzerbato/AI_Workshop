@@ -174,6 +174,7 @@ def one_hot_encoder(data, categorical, exog, endog):
         # Identify the most populated category for the variable
         main_category = data[var].value_counts().idxmax()
         excluded_main_categories.append(main_category)
+        
         # One-hot encode the variable
         encoded_df = pd.get_dummies(data[var], prefix=var, drop_first=False)
 
@@ -347,17 +348,32 @@ def extract_instruments(df, exogvars, marketvar, twodegree_polynomial_instrument
     return Z
 
 
+def remove_duplicates_keep_order(lst):
+    """
+    Remove duplicates from a list of strings while keeping the order
+    """
+    seen = set()
+    result = []
+    for item in lst:
+        if item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result
+
+
 def aggregate_data(data, pop_data, marketvar='marketid', productvar='make', twodegree_polynomial_instruments=False,
                    aggfunc='mean', numerical=[], categorical=[], dep=[], endog=[], exog=[]):
     """
     Aggregate the data at (market, product)-level.
     """
-    df = data[[marketvar, productvar, 'state'] + dep + endog + exog].copy()
+    #initialize variables
+    init_vars = remove_duplicates_keep_order([marketvar, productvar, 'state'] + dep + endog + exog)
+    df = data[init_vars].copy()
     pop_df = pop_data.copy()
 
     depvars = dep
     
-    # Extract categories and initialize variables
+    # Extract categories
     results = one_hot_encoder(df, categorical, exog, endog)
     df = results[0]; endogvars = results[1]; exogvars = results[2]
     excluded_main_categories = results[3]
