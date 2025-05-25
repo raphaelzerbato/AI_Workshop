@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 import statsmodels.api as sm
 #from linearmodels.iv import IV2SLS
 import seaborn as sns
-from itertools import product
+from itertools import product, combinations_with_replacement
 import yaml
 
 def load_data(file_path) -> pd.DataFrame:
@@ -96,8 +96,8 @@ def define_market(data, market_vars, minsize=20) -> pd.DataFrame:
         df['market'] = df['market'] + '_' + df[var].astype('str')
 
     markets_tab = df['market'].value_counts()
-
-    selected_markets = markets_tab.iloc[np.where(markets_tab>=minsize)].index
+    
+    selected_markets = markets_tab[markets_tab>=minsize].index
 
     nb_droppedmarkets = np.sum(~(markets_tab>=minsize))
 
@@ -106,7 +106,9 @@ def define_market(data, market_vars, minsize=20) -> pd.DataFrame:
     df = df[df['market'].isin(selected_markets)]
 
     print(f"\n{nb_droppedmarkets} markets with sizes lower than {minsize} have been dropped making {nb_droppedrows} dropped rows \n")
-
+  
+    selected_markets = markets_tab.index
+    
     idmarket_mask = dict([(i, selected_markets[i]) for i in range(len(selected_markets))])
     marketid_mask = dict([(selected_markets[i], i) for i in range(len(selected_markets))])
     
@@ -125,9 +127,9 @@ def recode_categories(series:pd.Series, replacement_mask=dict(), min_frequency=1
                         all values with a lower frequency will be recoded as 'other'
     Returns: pd.DataFrame
     """
-    s = series.copy()     
+    s = series.copy()
+    s = s.astype('string').str.lower()
     s = s.replace(replacement_mask)
-    s = s.map(lambda x: str(x).lower())
     frequencies = s.value_counts()
 
     popular_values = set(frequencies[frequencies>= min_frequency].index)-{''}
@@ -190,6 +192,7 @@ def one_hot_encoder(data, categorical):#, exog, endog):
         # Identify the most populated category for the variable
         main_category = data[var].value_counts().idxmax()
         excluded_main_categories.append(main_category)
+        
         # One-hot encode the variable
         encoded_df = pd.get_dummies(df[var], prefix=var, drop_first=False)
 
@@ -258,9 +261,14 @@ def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productv
     relevant_vars = list(set([marketvar, productvar, 'state'] + var_of_interest))
     
     df = data.copy()
+    var_list = var_of_interest.copy()
+    for var in [marketvar, productvar]:
+        if var in var_of_interest:
+            var_list.remove(var)
+    df = df[[marketvar, productvar] + var_list]
     print('\nNumber of missing per relevant variable in the remaining dataframe \n', np.sum(df.isna(), axis=0))
-    print(f"\nA total of {np.sum(np.any(df.isna(), axis=1))} rows with missing data in relevant variables have been dropped \n")
     if DropNa:
+        print(f"\nA total of {np.sum(np.any(df.isna(), axis=1))} rows with missing data in relevant variables have been dropped \n")
         df = df.dropna()
     df = df[relevant_vars]
     return df
