@@ -1,4 +1,7 @@
 # This is a configuration file for data processing in a machine learning project.
+loading_path_data:
+  data_cars: 'C:/Users/rapha/PythonTutos/AI_Workshop/data/data_cars/car_prices.csv'
+  data_population: 'C:/Users/rapha/PythonTutos/AI_Workshop/data/data_cars/states_populations_yr2015.csv'
 
 # Prepare minimum frequencies for the extract_relevant_variables function
 frequencies:

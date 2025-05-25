@@ -245,8 +245,13 @@ def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productv
     df = df[relevant_vars]
     return df
 
+def load_prepro_pop_data(data_config):
+    population_file_path = data_config['loading_path_data']['data_population']
+    pop_df   = load_data(population_file_path)
+    pop_df['population (2015)'] = pop_df['population (2015)'].map(lambda x: x.replace(',','')).astype('float')
+    return pop_df
 
-def compute_sales(data, marketid='marketid', productvar='make', aggfunc='mean'):
+def compute_sales_marketshare(data, data_config, aggfunc='mean'):
     """
     Compute market share and related variables.
 
@@ -259,9 +264,30 @@ def compute_sales(data, marketid='marketid', productvar='make', aggfunc='mean'):
     Returns:
         pd.DataFrame: DataFrame with aggregated data and computed sales.
     """
+    
     df = data.copy()
-    df = df.groupby([marketid, productvar, 'state'], observed=True).agg(aggfunc).reset_index()
-    df['sales'] = data.groupby([marketid, productvar, 'state'], observed=True).size().values
+
+    productvar = data_config['var_of_interest']['productvar']
+
+    group_by_vars = ['marketid', productvar, 'state']
+
+    df = df.groupby(group_by_vars, observed=True).agg(aggfunc).reset_index()
+
+    df['sales'] = data.groupby(group_by_vars, observed=True).size().values
+
+    # bug ici
+    outsideoption_df = df[['marketid','state','sales']].groupby(
+        by=['marketid', 'state'], observed=True
+    ).sum().reset_index().rename({'sales': 'allsales'}, axis=1)
+
+    pop_df = load_prepro_pop_data(data_config)
+
+    pop_df = pop_df.merge(outsideoption_df,on='state')
+    df = pop_df.merge(df, on=['marketid', 'state'])
+    
+    df['share'] = df['sales'] / df['population (2015)']
+    df['share_oo'] = 1 - (df['allsales'] / df['population (2015)'])
+    df['log_share_ratio'] = np.log(df['share'] / df['share_oo'])
     
     return df
 
