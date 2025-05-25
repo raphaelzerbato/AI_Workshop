@@ -1,5 +1,6 @@
 # %%
-from preprocessing.init_preprocessing import init_preprocessing, load_config, load_data
+from preprocessing.initiate_preprocessing import init_preprocessing
+from preprocessing.preprocessing_functions import load_data, load_config
 from instrument_creation.init_instrument_creation import init_instrument_creation
 import pandas as pd
 import yaml
@@ -7,7 +8,6 @@ from sklearn.model_selection import train_test_split
 
 # %%
 if __name__ == "__main__":
-
     # %%    
     """
     load data and config
