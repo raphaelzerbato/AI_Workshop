@@ -12,19 +12,18 @@ if __name__ == "__main__":
     """
     load data and config
     """
-    # Load data and config
-    cars_file_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/data/data_cars/car_prices.csv'
-    population_file_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/data/data_cars/states_populations_yr2015.csv'
 
-    cars_db         = load_data(cars_file_path)
-    population_db   = load_data(population_file_path)
-    
     # Load config
     model_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/model_config.yaml'
     model_config = load_config(model_config_path)
 
     data_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/data_config.yaml'
+    # Load data config
     data_config = load_config(data_config_path)
+
+    # load data
+    cars_file_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/data/data_cars/car_prices.csv'
+    cars_db        = load_data(cars_file_path)
 
     # %%
     """
@@ -81,9 +80,8 @@ if __name__ == "__main__":
     exogenous_var.extend(added_exo_dummies)
 
     # %%
-    df = compute_sales(df, marketid='marketid', 
-                       productvar= data_config['var_of_interest']['productvar'], 
-                       aggfunc='mean')
+    df = compute_sales_marketshare(df, data_config, aggfunc='mean')
+
     # %%
     # Compute market share
     outsideoption_df = df[[marketvar,'state','sales']].groupby(by=[marketvar,'state'],observed=True).sum().reset_index().rename({'sales':'allsales'},axis=1)
