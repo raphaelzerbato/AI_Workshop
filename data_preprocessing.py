@@ -162,7 +162,7 @@ def order_unorder_categorical_var(data, ordered=[], unordered=[],
         df[var] = pd.Categorical(df[var], ordered=False)
     return df
 
-def one_hot_encoder(data, categorical, exog, endog):
+def one_hot_encoder(data, categorical, exog, endog, ):
     """
     One-hot encode categorical variables and updates the list of
     endogenous and exogenous variables with the dummies and removes the main category keeping track 
