@@ -320,7 +320,6 @@ def compute_sales_marketshare(data, data_config, aggfunc='mean'):
 
     df['sales'] = data.groupby(group_by_vars, observed=True).size().values
 
-    # bug ici
     outsideoption_df = df[['marketid','state','sales']].groupby(
         by=['marketid', 'state'], observed=True
     ).sum().reset_index().rename({'sales': 'allsales'}, axis=1)
@@ -336,64 +335,6 @@ def compute_sales_marketshare(data, data_config, aggfunc='mean'):
     
     depvars = ['population (2015)', 'allsales', 'share_oo', 'sales', 'share', 'log_share_ratio']
     return df, depvars
-
-### im here
-def reduce_to_full_rank(A, tol=1e-10):
-    """
-    extract a full-rank matrix from A that has same rank as A, by dropping collinear columns
-    
-    Args: 
-        - A (2D array)
-    
-    Returns: 
-        - 2D array: a submatrix extracted from A
-    """
-    Q, R = np.linalg.qr(A) #QR decomposition
-    independent = np.abs(np.diag(R)) > tol
-    return A[:, independent]
-
-
-def get_non_collinear_instruments(Z, X_exog = None, tol=1e-10):
-    """
-    extract a full-rank matrix from Z whose columns are not collinear with other columns in Z and X_exog
-    
-    Args:
-        - Z (2D array): e.g. matrix of instruments
-        - X_exog (2D array): e.g. matrix of included exogenous variables
-        - tol (float): the tolerance used to check if the regression SSR is equal to zero
-    Returns:
-        - 2D array: a submatrix extracted from Z
-
-    Notes:
-        - The idea is to regress iteratively each column from Z on other columns in Z and columns in X_exog, and suppress the dependant column from Z if there is a perfect fit
-    """
-
-    #Initialize the matrix X of regressor columns with X_exog (and include the constant column)
-    if np.all(X_exog==None):
-        X = np.ones((Z.shape[0], 1))
-    else:
-        X = np.asarray(X_exog)
-        X = np.hstack([X, np.ones((X.shape[0], 1))])
-
-    keep = []
-    NewZ = Z
-    for col in Z.columns:
-        #get the dependant column
-        y = Z[col].values 
-        #update the matrix of regressor columns with remaining columns in Z
-        Xcol0 = np.hstack([NewZ.drop([col],axis=1), X])
-        #get full-rank version of the matrix of regressor columns
-        Xcol = reduce_to_full_rank(Xcol0)
-        #fit depenant column on regressor columns
-        beta = np.linalg.lstsq(Xcol, y, rcond=None)[0]
-        y_hat = Xcol @ beta
-        residual = y - y_hat    
-        if np.linalg.norm(residual) > tol:
-            keep.append(col)
-        else:
-            NewZ = NewZ.drop([col],axis=1)
-
-    return Z[keep], keep
 
 def extract_instruments(df, exogvars, marketvar, twodegree_polynomial_instruments):
     """
@@ -438,6 +379,63 @@ def extract_instruments(df, exogvars, marketvar, twodegree_polynomial_instrument
         ).reset_index(drop=True).drop(exogvars, axis=1)
     return Z
 
+### im here
+def reduce_to_full_rank(A, tol=1e-10):
+    """
+    extract a full-rank matrix from A that has same rank as A, by dropping collinear columns
+    
+    Args: 
+        - A (2D array)
+    
+    Returns: 
+        - 2D array: a submatrix extracted from A
+    """
+    Q, R = np.linalg.qr(A) #QR decomposition
+    independent = np.abs(np.diag(R)) > tol
+    return A[:, independent]
+
+def get_non_collinear_instruments(Z, X_exog = None, tol=1e-10):
+    """
+    extract a full-rank matrix from Z whose columns are not collinear with other columns in Z and X_exog
+    
+    Args:
+        - Z (2D array): e.g. matrix of instruments
+        - X_exog (2D array): e.g. matrix of included exogenous variables
+        - tol (float): the tolerance used to check if the regression SSR is equal to zero
+    Returns:
+        - 2D array: a submatrix extracted from Z
+
+    Notes:
+        - The idea is to regress iteratively each column from Z on other columns in Z and columns in X_exog, 
+        and suppress the dependant column from Z if there is a perfect fit
+    """
+
+    #Initialize the matrix X of regressor columns with X_exog (and include the constant column)
+    if np.all(X_exog==None):
+        X = np.ones((Z.shape[0], 1))
+    else:
+        X = np.asarray(X_exog)
+        X = np.hstack([X, np.ones((X.shape[0], 1))])
+
+    keep = []
+    NewZ = Z
+    for col in Z.columns:
+        #get the dependant column
+        y = Z[col].values 
+        #update the matrix of regressor columns with remaining columns in Z
+        Xcol0 = np.hstack([NewZ.drop([col],axis=1), X])
+        #get full-rank version of the matrix of regressor columns
+        Xcol = reduce_to_full_rank(Xcol0)
+        #fit depenant column on regressor columns
+        beta = np.linalg.lstsq(Xcol, y, rcond=None)[0]
+        y_hat = Xcol @ beta
+        residual = y - y_hat    
+        if np.linalg.norm(residual) > tol:
+            keep.append(col)
+        else:
+            NewZ = NewZ.drop([col],axis=1)
+
+    return Z[keep], keep
 
 def aggregate_data(data, pop_data, marketvar='marketid', productvar='make', twodegree_polynomial_instruments=False,
                    aggfunc='mean', numerical=[], categorical=[], dep=[], endog=[], exog=[]):

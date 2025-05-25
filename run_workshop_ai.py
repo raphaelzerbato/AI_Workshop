@@ -89,12 +89,13 @@ if __name__ == "__main__":
     Z = extract_instruments(df_one_hot, exogenous_var,
                             marketvar = 'marketid',
                             twodegree_polynomial_instruments=False)
-    # %%
+
     # Reduce instruments to collinearity-proof instruments
-    Z, instrvars = get_non_collinear_instruments(Z, df[exogvars])
-    # %%
+    Z, instrvars = get_non_collinear_instruments(Z, df_one_hot[exogenous_var])
+
     # Finalize the dataframe
-    df = df[[marketvar, productvar, 'state'] + depvars + endogvars + exogvars].reset_index(drop=True).join(Z.reset_index(drop=True))
+    final_df = df_one_hot[['marketid', data_config['var_of_interest']['productvar'], 'state'] + added_depvar + endogenous_var + exogenous_var].reset_index(drop=True).join(Z.reset_index(drop=True))
+    
 
     # %%
     # Preprocess data
