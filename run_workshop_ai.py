@@ -1,6 +1,6 @@
 # %%
-import data_preprocessing as dp
-from data_preprocessing import *
+import preprocessing.preprocessing_car_data as dp
+from preprocessing.preprocessing_car_data import *
 import pandas as pd
 import yaml
 from sklearn.model_selection import train_test_split
@@ -35,25 +35,23 @@ if __name__ == "__main__":
 
     # Define markets
     df = dp.define_market(df, 
-        market_vars=data_config['var_of_interest']['marketvar'],
-        market_label='market',
-        market_code='marketid',
-        minsize=20)
+        market_vars = data_config['var_of_interest']['marketvar'],
+        minsize = data_config['minisize_of_market'])
 
     # preprocess color and interior
     df = dp.preprocess_color_interior(df)    
 
     # exctract variables of intrest
     df = dp.subset_var_of_interest(df,
-    data_config['var_of_interest']['numerical']+ data_config['var_of_interest']['unordered'], 
-    marketvar='marketid', productvar='make')
+    data_config['var_of_interest']['numerical'] + data_config['var_of_interest']['unordered'], 
+    marketvar = 'marketid', productvar = data_config['var_of_interest']['productvar'])
     
     # preprocess color and interior
-    df = preprocess_color_interior(df)
+    df = dp.preprocess_color_interior(df)
 
     # %%
     # preprocess categorical variables
-    df = treat_categories(
+    df = dp.treat_categories(
         df, 
         variable = data_config['var_of_interest']['ordered'],
         masks=data_config['ordered_masks'],
@@ -61,7 +59,7 @@ if __name__ == "__main__":
         order_serie = True
         )
 
-    df = treat_categories(
+    df = dp.treat_categories(
         df,
         variable=data_config['var_of_interest']['unordered'],
         masks=data_config['unordered_masks'], 
@@ -71,19 +69,26 @@ if __name__ == "__main__":
         
     # %%
     # one hot encoding of the categorical variables
-    exo_cats, endo_cats = get_categorical_intersections(data_config)
+    exo_cats, endo_cats = dp.get_categorical_intersections(data_config)
     
     endogenous_var = data_config['var_of_interest']['endog']
     exogenous_var = data_config['var_of_interest']['exog']
 
-    df, added_exo_dummies, excluded_exo_main = one_hot_encoder(df, exo_cats)
-    df, added_endo_dummies, excluded_endo_main = one_hot_encoder(df, endo_cats)
+    df, added_exo_dummies, excluded_exo_main = dp.one_hot_encoder(df, exo_cats)
+    df, added_endo_dummies, excluded_endo_main = dp.one_hot_encoder(df, endo_cats)
 
     endogenous_var.extend(added_endo_dummies)
     exogenous_var.extend(added_exo_dummies)
 
     # %%
-    
+    df = compute_sales(df, marketid='marketid', 
+                       productvar= data_config['var_of_interest']['productvar'], 
+                       aggfunc='mean')
+    # %%
+    # Compute market share
+    outsideoption_df = df[[marketvar,'state','sales']].groupby(by=[marketvar,'state'],observed=True).sum().reset_index().rename({'sales':'allsales'},axis=1)
+    # %%
+    df = compute_market_share(df, marketid='marketid', productvar=data_config['var_of_interest']['productvar'], aggfunc='mean')
 
     # %%
     # Preprocess data
