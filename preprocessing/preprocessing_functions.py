@@ -4,6 +4,7 @@ Functions for loading and preprocessing car data.
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
+from init_preprocessing import load_data
 # import tensorflow as tf
 # from tensorflow import keras
 # from tensorflow.keras import layers, Input
