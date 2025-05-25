@@ -18,24 +18,26 @@ from catboost import CatBoostClassifier
 Load data and configs function
 """
 # Load  data from file
-def load_data(file_path) -> pd.DataFrame:
+def load_data(file_path)->pd.dataframe:
     """
-    Load car data from a CSV, JSON, or Excel file.
+    Load car data from a CSV file.
     
     Args:
-        file_path (str): Path to the file.
+        file_path (str): Path to the CSV file.
         
     Returns:
-        pd.DataFrame: Loaded data as a pandas DataFrame.
+        list of dict: List of car data dictionaries.
     """
+
     if file_path.endswith('.csv'):
-        data = pd.read_csv(file_path)
+          # Load CSV data
+          data = pd.read_csv(file_path)
     elif file_path.endswith('.json'):
-        data = pd.read_json(file_path)
+          # Load JSON data
+          data = pd.read_json(file_path)
     elif file_path.endswith('.xlsx'):
-        data = pd.read_excel(file_path)
-    else:
-        raise ValueError("Unsupported file format. Please provide a .csv, .json, or .xlsx file.")
+          # Load Excel data
+          data = pd.read_excel(file_path)
     return data
 
 # Load config
@@ -56,7 +58,7 @@ def load_config(config_path: str) -> dict:
 """
 Treating the data function
 """
-def splitting_data(data:pd.dataframe, Y_var:str)->pd.dataframe:
+def splitting_data(data:pd.DataFrame, Y_var:str)->pd.DataFrame:
     # Splitting the data into train and test sets
     X = data.drop(columns=[Y_var])
     y = data[Y_var]
