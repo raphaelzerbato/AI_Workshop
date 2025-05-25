@@ -1,0 +1,22 @@
+------- Dataset on Fictious pizza sales (the pizzaplace dataset)
+https://vincentarelbundock.github.io/Rdatasets/articles/data.html
+
+------- Car sales dataset
+https://www.kaggle.com/datasets/syedanwarafridi/vehicle-sales-data?select=car_prices.csv
+
+Year: The manufacturing year of the vehicle.
+make: The brand or manufacturer of the vehicle.
+model: The specific model of the vehicle.
+trim: additional designation for the vehicle model.
+body: The body type of the vehicle (e.g., SUV, Sedan).
+transmission: The type of transmission in the vehicle (e.g., automatic).
+vin: Vehicle Identification Number, a unique code for each vehicle.
+state: The state where the vehicle is registered.
+condition: Condition of the vehicle, possibly rated on a scale.
+odometer: The mileage or distance traveled by the vehicle.
+color: Exterior color of the vehicle.
+interior: Interior color of the vehicle.
+seller: The entity selling the vehicle.
+mmr: Manheim Market Report, possibly indicating the estimated market value of the vehicle.
+sellingprice: The price at which the vehicle was sold.
+saledate: The date and time when the vehicle was sold.
