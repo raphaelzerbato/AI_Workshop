@@ -45,7 +45,7 @@ if __name__ == "__main__":
     data_config['var_of_interest']['numerical'] + data_config['var_of_interest']['unordered'], 
     marketvar = 'marketid', productvar = data_config['var_of_interest']['productvar'])
     
-    # preprocess color and interior
+    # preprocess color and interio
     df = dp.preprocess_color_interior(df)
 
     # %%
@@ -70,23 +70,31 @@ if __name__ == "__main__":
     # one hot encoding of the categorical variables
     exo_cats, endo_cats = dp.get_categorical_intersections(data_config)
     
-    endogenous_var = data_config['var_of_interest']['endog']
-    exogenous_var = data_config['var_of_interest']['exog']
+    df_one_hot, added_exo_dummies, excluded_exo_main = dp.one_hot_encoder(df, exo_cats)
+    df_one_hot, added_endo_dummies, excluded_endo_main = dp.one_hot_encoder(df_one_hot, endo_cats)
 
-    df, added_exo_dummies, excluded_exo_main = dp.one_hot_encoder(df, exo_cats)
-    df, added_endo_dummies, excluded_endo_main = dp.one_hot_encoder(df, endo_cats)
-
-    endogenous_var.extend(added_endo_dummies)
-    exogenous_var.extend(added_exo_dummies)
+    endogenous_var = update_list(data_config['var_of_interest']['endog'],
+                                added_endo_dummies,
+                                endo_cats)
+    
+    exogenous_var = update_list(data_config['var_of_interest']['exog'],
+                                added_exo_dummies,
+                                exo_cats)
+    
+    # %%
+    df_one_hot, added_depvar = compute_sales_marketshare(df_one_hot, data_config, aggfunc='mean')
 
     # %%
-    df = compute_sales_marketshare(df, data_config, aggfunc='mean')
-
+     # Extract instruments
+    Z = extract_instruments(df_one_hot, exogenous_var,
+                            marketvar = 'marketid',
+                            twodegree_polynomial_instruments=False)
     # %%
-    # Compute market share
-    outsideoption_df = df[[marketvar,'state','sales']].groupby(by=[marketvar,'state'],observed=True).sum().reset_index().rename({'sales':'allsales'},axis=1)
+    # Reduce instruments to collinearity-proof instruments
+    Z, instrvars = get_non_collinear_instruments(Z, df[exogvars])
     # %%
-    df = compute_market_share(df, marketid='marketid', productvar=data_config['var_of_interest']['productvar'], aggfunc='mean')
+    # Finalize the dataframe
+    df = df[[marketvar, productvar, 'state'] + depvars + endogvars + exogvars].reset_index(drop=True).join(Z.reset_index(drop=True))
 
     # %%
     # Preprocess data
