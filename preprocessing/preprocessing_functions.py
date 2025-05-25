@@ -4,7 +4,6 @@ Functions for loading and preprocessing car data.
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
-from init_preprocessing import load_data
 # import tensorflow as tf
 # from tensorflow import keras
 # from tensorflow.keras import layers, Input
@@ -13,6 +12,39 @@ import statsmodels.api as sm
 import seaborn as sns
 from itertools import product
 import yaml
+
+def load_data(file_path) -> pd.DataFrame:
+    """
+    Load car data from a CSV, JSON, or Excel file.
+    
+    Args:
+        file_path (str): Path to the file.
+        
+    Returns:
+        pd.DataFrame: Loaded data as a pandas DataFrame.
+    """
+    if file_path.endswith('.csv'):
+        data = pd.read_csv(file_path)
+    elif file_path.endswith('.json'):
+        data = pd.read_json(file_path)
+    elif file_path.endswith('.xlsx'):
+        data = pd.read_excel(file_path)
+    else:
+        raise ValueError("Unsupported file format. Please provide a .csv, .json, or .xlsx file.")
+    return data
+
+def load_config(config_path: str) -> dict:
+    """
+    Load configuration from a YAML file.
+
+    Args:
+        config_path (str): Path to the YAML configuration file.
+
+    Returns:
+        dict: Configuration dictionary.
+    """
+    with open(config_path, 'r') as file:
+        return yaml.safe_load(file)
 
 def process_dates(data) -> pd.DataFrame:
     """

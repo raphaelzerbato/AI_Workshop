@@ -68,36 +68,3 @@ def init_preprocessing(data_config, cars_db):
     df_one_hot, added_depvar = compute_sales_marketshare(df_one_hot, data_config, aggfunc='mean')
     
     return df_one_hot, endogenous_var, exogenous_var, added_depvar
-
-def load_data(file_path) -> pd.DataFrame:
-    """
-    Load car data from a CSV, JSON, or Excel file.
-    
-    Args:
-        file_path (str): Path to the file.
-        
-    Returns:
-        pd.DataFrame: Loaded data as a pandas DataFrame.
-    """
-    if file_path.endswith('.csv'):
-        data = pd.read_csv(file_path)
-    elif file_path.endswith('.json'):
-        data = pd.read_json(file_path)
-    elif file_path.endswith('.xlsx'):
-        data = pd.read_excel(file_path)
-    else:
-        raise ValueError("Unsupported file format. Please provide a .csv, .json, or .xlsx file.")
-    return data
-
-def load_config(config_path: str) -> dict:
-    """
-    Load configuration from a YAML file.
-
-    Args:
-        config_path (str): Path to the YAML configuration file.
-
-    Returns:
-        dict: Configuration dictionary.
-    """
-    with open(config_path, 'r') as file:
-        return yaml.safe_load(file)
