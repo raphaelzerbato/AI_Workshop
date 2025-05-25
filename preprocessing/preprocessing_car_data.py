@@ -74,7 +74,7 @@ def process_dates(data) -> pd.DataFrame:
     df['sellingweek'] = df['saledate'].map(lambda x: x.isocalendar().week)
     return df
 
-def define_market(data, market_vars, market_label='market', market_code='marketid', minsize=20) -> pd.DataFrame:
+def define_market(data, market_vars, minsize=20) -> pd.DataFrame:
     """
     Build two new column (marketid, market) for the market IDs
     
@@ -162,44 +162,20 @@ def treat_categories(data, variable=[], masks=dict(), min_frequencies=dict(), or
 
     return df
 
-# def one_hot_encoder(data, categorical):#, exog, endog):
-#     """
-#     One-hot encode categorical variables and updates the list of
-#     endogenous and exogenous variables with the dummies and removes the main category keeping track 
-#     of it with excluded_main_categories.
-#     """
-#     df = data.copy()
-#     excluded_main_categories = []
-#     for var in categorical:
-#         # Identify the most populated category for the variable
-#         main_category = data[var].value_counts().idxmax()
-#         excluded_main_categories.append(main_category)
-#         # One-hot encode the variable
-#         encoded_df = pd.get_dummies(data[var], prefix=var, drop_first=True)
-
-#         # Remove the column corresponding to the main category
-#         main_category_column = f"{var}_{main_category}"
-
-#         encoded_df = encoded_df.drop(columns=[main_category_column])
-
-#         # Add the remaining encoded columns to the main dataframe
-#         df = pd.concat([df, encoded_df], axis=1)
-        
-#         # Update exog and endog variables
-#         dummy_var = list(set(df.columns) - set(data.columns))
-#         if var in exog:
-#             exog.remove(var)
-#             exog = exog + dummy_var
-#         if var in endog:   
-#             endog.remove(var)
-#             endog = endog + dummy_var
-#     return df, endog, exog, excluded_main_categories
-
-
 def get_categorical_intersections(config):
-    cat_vars = config['var_of_interest']['categorical']
-    exo_cats = list(set(config['var_of_interest']['exog']) & set(cat_vars))
-    endo_cats = list(set(config['var_of_interest']['endog']) & set(cat_vars))
+    """
+    Extract the intersection of categorical variables with exogenous and endogenous variables.
+
+    Args:
+        config (dict): Configuration dictionary containing 'var_of_interest' with keys 'categorical', 'exog', and 'endog'.
+
+    Returns:
+        tuple: Two lists - exogenous categorical variables and endogenous categorical variables.
+    """
+    var_of_interest = config.get('var_of_interest', {})
+    cat_vars = set(var_of_interest.get('categorical', []))
+    exo_cats = list(cat_vars.intersection(var_of_interest.get('exog', [])))
+    endo_cats = list(cat_vars.intersection(var_of_interest.get('endog', [])))
     return exo_cats, endo_cats
 
 def one_hot_encoder(data, categorical):#, exog, endog):
@@ -213,7 +189,6 @@ def one_hot_encoder(data, categorical):#, exog, endog):
     added_dummies = []
     for var in categorical:
         # Identify the most populated category for the variable
-        print(var)
         main_category = data[var].value_counts().idxmax()
         excluded_main_categories.append(main_category)
         # One-hot encode the variable
@@ -226,6 +201,10 @@ def one_hot_encoder(data, categorical):#, exog, endog):
         # Add the remaining encoded columns to the main dataframe
         df = pd.concat([df, encoded_df], axis=1)
         
+        # remove the original categorical column
+        if var not in ['make']:
+            df = df.drop(columns=[var])
+    
         # Update exog and endog variables
         dummy_var = list(set(df.columns) - set(data.columns))
         
@@ -256,7 +235,7 @@ def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productv
     Subset the data to keep only the variables of interest
     """
     # Ensure no duplicate names in the list
-    relevant_vars = list(dict.fromkeys([marketvar, productvar] + var_of_interest))
+    relevant_vars = list(set([marketvar, productvar, 'state'] + var_of_interest))
     
     df = data.copy()
     print('\nNumber of missing per relevant variable in the remaining dataframe \n', np.sum(df.isna(), axis=0))
@@ -264,6 +243,41 @@ def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productv
     if DropNa:
         df = df.dropna()
     df = df[relevant_vars]
+    return df
+
+
+def compute_sales(data, marketid='marketid', productvar='make', aggfunc='mean'):
+    """
+    Compute market share and related variables.
+
+    Args:
+        data (pd.DataFrame): Input data containing market and product information.
+        marketvar (str): Column name representing the market identifier.
+        productvar (str): Column name representing the product identifier.
+        aggfunc (str or function): Aggregation function to apply (default is 'mean').
+
+    Returns:
+        pd.DataFrame: DataFrame with aggregated data and computed sales.
+    """
+    df = data.copy()
+    df = df.groupby([marketid, productvar, 'state'], observed=True).agg(aggfunc).reset_index()
+    df['sales'] = data.groupby([marketid, productvar, 'state'], observed=True).size().values
+    
+    return df
+
+
+def compute_market_shares(df, pop_df, marketid, productvar):
+    """
+    Compute market shares and related variables.
+    """
+    outsideoption_df = df[[marketid, 'state', 'sales']].groupby(
+        by=[marketid, 'state'], observed=True
+    ).sum().reset_index().rename({'sales': 'allsales'}, axis=1)
+    pop_df = pop_df.merge(outsideoption_df, on='state')
+    df = pop_df.merge(df, on=[marketid, 'state'])
+    df['share'] = df['sales'] / df['population (2015)']
+    df['share_oo'] = 1 - (df['allsales'] / df['population (2015)'])
+    df['log_share_ratio'] = np.log(df['share'] / df['share_oo'])
     return df
 
 

@@ -1,74 +1,4 @@
-
-
-# This is the configuration file for data processing
-
-# This is used to map the constructor names in the dataset to a more standardized format
-make_mask:
-  gmc truck: gmc
-  dodge tk: dodge
-  mazda tk: mazda
-  hyundai tk: hyundai
-  mercedes-b: mercedes-benz
-  chev truck: chevrolet
-  ford tk: ford
-  ford truck: ford
-  vw: volkswagen
-
-# This is used to map the body types in the dataset to a more standardized format
-body_type_map:
-  # suvs
-  suv: suv      
-  # sedans
-  sedan: sedan
-  g sedan: sedan
-  elantra coupe: sedan
-  # coupes
-  coupe: coupe
-  g coupe: coupe
-  genesis coupe: coupe
-  cts coupe: coupe
-  koup: coupe
-  cts-v coupe: coupe
-  g37 coupe: coupe
-  q60 coupe: coupe
-  # convertibles
-  convertible: convertible
-  g convertible: convertible
-  g37 convertible: convertible
-  q60 convertible: convertible
-  beetle convertible: convertible
-  granturismo convertible: convertible
-  # wagons
-  wagon: wagon
-  cts wagon: wagon
-  tsx sport wagon: wagon
-  cts-v wagon: wagon
-  # hatchbacks
-  hatchback: hatchback
-  # vans / minivans
-  minivan: van
-  van: van
-  e-series van: van
-  promaster cargo van: van
-  ram van: van
-  transit van: van
-  # pickup trucks - cab variants
-  crew cab: pickup
-  double cab: pickup
-  crewmax cab: pickup
-  access cab: pickup
-  king cab: pickup
-  supercrew: pickup
-  extended cab: pickup
-  supercab: pickup
-  regular cab: pickup
-  regular-cab: pickup
-  quad cab: pickup
-  club cab: pickup
-  xtracab: pickup
-  mega cab: pickup
-  cab plus: pickup
-  cab plus 4: pickup
+# This is a configuration file for data processing in a machine learning project.
 
 # Prepare minimum frequencies for the extract_relevant_variables function
 frequencies:
@@ -78,7 +8,6 @@ frequencies:
   color_freq: 10000
   interior_freq: 10000
 
-# 
 ordered_masks: []
 
 ordered_min_frequencies: {}
@@ -105,8 +34,70 @@ unordered_masks:
     1997: "1999"
     1998: "1999"
     1999: "1999"
-  make: make_mask
-  body: body_mask
+  make:
+    gmc truck: gmc
+    dodge tk: dodge
+    mazda tk: mazda
+    hyundai tk: hyundai
+    mercedes-b: mercedes-benz
+    chev truck: chevrolet
+    ford tk: ford
+    ford truck: ford
+    vw: volkswagen
+  body: 
+    # suvs1
+    suv: suv      
+    # sedans
+    sedan: sedan
+    g sedan: sedan
+    elantra coupe: sedan
+    # coupes
+    coupe: coupe
+    g coupe: coupe
+    genesis coupe: coupe
+    cts coupe: coupe
+    koup: coupe
+    cts-v coupe: coupe
+    g37 coupe: coupe
+    q60 coupe: coupe
+    # convertibles
+    convertible: convertible
+    g convertible: convertible
+    g37 convertible: convertible
+    q60 convertible: convertible
+    beetle convertible: convertible
+    granturismo convertible: convertible
+    # wagons
+    wagon: wagon
+    cts wagon: wagon
+    tsx sport wagon: wagon
+    cts-v wagon: wagon
+    # hatchbacks
+    hatchback: hatchback
+    # vans / minivans
+    minivan: van
+    van: van
+    e-series van: van
+    promaster cargo van: van
+    ram van: van
+    transit van: van
+    # pickup trucks - cab variants
+    crew cab: pickup
+    double cab: pickup
+    crewmax cab: pickup
+    access cab: pickup
+    king cab: pickup
+    supercrew: pickup
+    extended cab: pickup
+    supercab: pickup
+    regular cab: pickup
+    regular-cab: pickup
+    quad cab: pickup
+    club cab: pickup
+    xtracab: pickup
+    mega cab: pickup
+    cab plus: pickup
+    cab plus 4: pickup
   color: color_mask
   interior: interior_mask
 
@@ -118,12 +109,15 @@ unordered_min_frequencies:
   interior: 10000
 
 var_of_interest:
+  #marketid: 
+  #  - 'marketid' 
+  #market:
+  #  - 'market'  
   marketvar:
     - 'sellingyear'
     - 'sellingmonth'
     - 'state'
-  productvar:
-    - 'make'
+  productvar: 'make'
   numerical:
     - 'sellingprice'
     - 'odometer'
@@ -151,5 +145,5 @@ var_of_interest:
     - 'body'
     - 'color'
     - 'interior'
-    
-
+  
+minisize_of_market : 20
