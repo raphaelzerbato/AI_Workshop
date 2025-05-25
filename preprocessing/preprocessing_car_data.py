@@ -13,7 +13,6 @@ import seaborn as sns
 from itertools import product
 import yaml
 
-
 def load_data(file_path) -> pd.DataFrame:
     """
     Load car data from a CSV, JSON, or Excel file.
@@ -212,13 +211,34 @@ def one_hot_encoder(data, categorical):#, exog, endog):
 
     return df, added_dummies, excluded_main_categories
 
+def update_list(lst, new_items_add, item_to_remove=None):
+    """
+    Update a list by adding new items and optionally removing an item.
+    
+    Args:
+        lst (list): The original list to be updated.
+        new_items_add (list): Items to be added to the list.
+        item_to_remove (str, optional): Item to be removed from the list. Defaults to None.
+        
+    Returns:
+        list: Updated list with new items added and specified item removed.
+    """
+    lst.extend(item for item in new_items_add if item not in lst)
+    for item in item_to_remove:
+        if item is not None and item in lst:
+            lst.remove(item)
+    return lst
+
+
 def preprocess_color_interior(df):
     """
     Preprocess the 'color' and 'interior' columns in the DataFrame.
     """
     for var in ['color', 'interior']:
         if var in df.columns:
-            df[var].replace({'—':np.nan})  
+            color_table = df[var].value_counts()
+            popular_colors = set(color_table[color_table>=10000].index)-{'—'}
+            df[var] = df[var].map(lambda x: x if x in popular_colors else 'other')
     return df     
 
 def change_to_numerical(data, numerical):
@@ -246,6 +266,31 @@ def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productv
     return df
 
 def load_prepro_pop_data(data_config):
+    """
+    Loads and preprocesses population data from a specified file path.
+
+    This function reads population data from a file specified in the 
+    `data_config` dictionary, processes the population column to remove 
+    commas, and converts it to a float type for further analysis.
+
+    Args:
+        data_config (dict): A configuration dictionary containing the 
+            file path to the population data under the key 
+            'loading_path_data' -> 'data_population'.
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing the processed population 
+        data with the 'population (2015)' column cleaned and converted 
+        to float.
+
+    Example:
+        data_config = {
+            'loading_path_data': {
+                'data_population': 'path/to/population_data.csv'
+            }
+        }
+        pop_df = load_prepro_pop_data(data_config)
+    """
     population_file_path = data_config['loading_path_data']['data_population']
     pop_df   = load_data(population_file_path)
     pop_df['population (2015)'] = pop_df['population (2015)'].map(lambda x: x.replace(',','')).astype('float')
@@ -289,24 +334,10 @@ def compute_sales_marketshare(data, data_config, aggfunc='mean'):
     df['share_oo'] = 1 - (df['allsales'] / df['population (2015)'])
     df['log_share_ratio'] = np.log(df['share'] / df['share_oo'])
     
-    return df
+    depvars = ['population (2015)', 'allsales', 'share_oo', 'sales', 'share', 'log_share_ratio']
+    return df, depvars
 
-
-def compute_market_shares(df, pop_df, marketid, productvar):
-    """
-    Compute market shares and related variables.
-    """
-    outsideoption_df = df[[marketid, 'state', 'sales']].groupby(
-        by=[marketid, 'state'], observed=True
-    ).sum().reset_index().rename({'sales': 'allsales'}, axis=1)
-    pop_df = pop_df.merge(outsideoption_df, on='state')
-    df = pop_df.merge(df, on=[marketid, 'state'])
-    df['share'] = df['sales'] / df['population (2015)']
-    df['share_oo'] = 1 - (df['allsales'] / df['population (2015)'])
-    df['log_share_ratio'] = np.log(df['share'] / df['share_oo'])
-    return df
-
-
+### im here
 def reduce_to_full_rank(A, tol=1e-10):
     """
     extract a full-rank matrix from A that has same rank as A, by dropping collinear columns
@@ -364,32 +395,38 @@ def get_non_collinear_instruments(Z, X_exog = None, tol=1e-10):
 
     return Z[keep], keep
 
-def compute_market_shares(df, pop_df, marketvar, productvar):
-    """
-    Compute market shares and related variables.
-    """
-    outsideoption_df = df[[marketvar, 'state', 'sales']].groupby(
-        by=[marketvar, 'state'], observed=True
-    ).sum().reset_index().rename({'sales': 'allsales'}, axis=1)
-    pop_df = pop_df.merge(outsideoption_df, on='state')
-    df = pop_df.merge(df, on=[marketvar, 'state'])
-    df['share'] = df['sales'] / df['population (2015)']
-    df['share_oo'] = 1 - (df['allsales'] / df['population (2015)'])
-    df['log_share_ratio'] = np.log(df['share'] / df['share_oo'])
-    return df
-
-
 def extract_instruments(df, exogvars, marketvar, twodegree_polynomial_instruments):
     """
     Extract instruments for the model.
+    The number of other products in the same market.
+
+    The sum of exogenous variables across other products in the market (excluding the current row).
+
+    The sum of all pairwise interactions between exogenous variables across other products (excluding the current row).
+
+    # exogvasr = ['odometer', 'condition', 'interior_other', 'interior_gray', 'interior_tan',
+    'interior_beige', 'make_chevrolet', 'make_nissan', 'make_toyota','make_chrysler', 'make_bmw',..., 'year_..', 'make_', 
+    'color_', 'body_']
+    market_var = 'marketid'
     """
+    # Check if the variable `twodegree_polynomial_instruments` is not set or is falsy
     if not twodegree_polynomial_instruments:
+        # Create a new DataFrame `Z` by grouping `df` by `marketvar` and applying a transformation
         Z = df[[marketvar] + exogvars].groupby([marketvar]).apply(
-            lambda x: x.assign(**dict(
-                [('Nb_RivalProducts', x.shape[0] - 1)] +
-                [(var + '_RivalProducts', x[var].sum() - x[var]) for var in exogvars]
-            )), include_groups=False
-        ).reset_index(drop=True).drop(exogvars, axis=1)
+            # For each group, assign new columns:
+            lambda x: x.assign(
+                # Add a column `Nb_RivalProducts` which is the count of rows in the group minus 1
+                **dict(
+                    [('Nb_RivalProducts', x.shape[0] - 1)] +
+                    # For each variable in `exogvars`, add a column `<var>_RivalProducts`
+                    # which is the sum of the variable in the group minus the value for the current row
+                    [(var + '_RivalProducts', x[var].sum() - x[var]) for var in exogvars]
+                )
+            ),
+            # `include_groups=False` is intended to exclude the grouping columns from the output
+            include_groups=False
+        ).reset_index(drop=True).drop(exogvars, axis=1)     # Reset the index of the resulting DataFrame
+        # Drop the original `exogvars` columns from the DataFrame `Z`
     else:
         Z = df[[marketvar] + exogvars].groupby([marketvar]).apply(
             lambda x: x.assign(**dict(
