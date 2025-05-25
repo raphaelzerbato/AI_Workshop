@@ -151,3 +151,6 @@ var_of_interest:
     - 'interior'
   
 minisize_of_market : 20
+
+instrument_creation:
+  twodegree_polynomial_instruments: False
