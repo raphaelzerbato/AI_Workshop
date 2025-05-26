@@ -261,11 +261,6 @@ def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productv
     relevant_vars = list(set([marketvar, productvar, 'state'] + var_of_interest))
     
     df = data.copy()
-    var_list = var_of_interest.copy()
-    for var in [marketvar, productvar]:
-        if var in var_of_interest:
-            var_list.remove(var)
-    df = df[[marketvar, productvar] + var_list]
     print('\nNumber of missing per relevant variable in the remaining dataframe \n', np.sum(df.isna(), axis=0))
     if DropNa:
         print(f"\nA total of {np.sum(np.any(df.isna(), axis=1))} rows with missing data in relevant variables have been dropped \n")

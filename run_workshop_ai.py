@@ -16,8 +16,8 @@ if __name__ == "__main__":
     model_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/model_config.yaml'
     model_config = load_config(model_config_path)
 
-    data_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/data_config.yaml'
     # Load data config
+    data_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/data_config.yaml'
     data_config = load_config(data_config_path)
 
     # load data
