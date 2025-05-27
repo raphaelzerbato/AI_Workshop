@@ -41,6 +41,14 @@ if __name__ == "__main__":
         + exogenous_var
     ].reset_index(drop=True).join(Z.reset_index(drop=True))
 
+    # %%[markdown]
+    # To run this cell as a markdown cell in a Jupyter Notebook, 
+    # replace the `# %%[markdown]` with a markdown cell (using the Jupyter interface).
+    # For example, in Jupyter, you would insert a new cell, set its type to "Markdown", and write your markdown content there.
+    # Example markdown content:
+    # $\alpha$ is the coefficient of the price variable in the model, which is expected to be negative.
+    # ## Data Preprocessing and Instrument Creation
+    # This section preprocesses the data and creates instruments for the model.
     # %%
     # Preprocess data
     X_train, X_test, y_train, y_test = splitting_data(cars_db, 'price')
