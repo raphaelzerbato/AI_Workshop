@@ -1,6 +1,6 @@
 # %%
-from preprocessing.initiate_preprocessing import init_preprocessing
-from preprocessing.preprocessing_functions import load_data, load_config
+from data_preprocessing.init_data_prepro import init_data_preprocessing
+from data_preprocessing.data_prepro_func import load_data, load_config
 from instrument_creation.init_instrument_creation import init_instrument_creation
 import pandas as pd
 import mlflow
@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     # %%
     # preprocessing the data
-    preprocess_df, endogenous_var, exogenous_var, added_depvar = init_preprocessing(data_config, cars_db)
+    preprocess_df, endogenous_var, exogenous_var, added_depvar = init_data_preprocessing(data_config, cars_db)
 
     # %%
      # Extract instruments
@@ -97,22 +97,45 @@ if __name__ == "__main__":
     # %%
     # Run simple OLS regression on the final_df
     from models_IV.OLS import LinearModel
+    from sklearn.model_selection import train_test_split
+
     
-    X_train, X_test, y_train, y_test = splitting_data(cars_db, 'price')
+    def __train_test_split__(df, target_col:str, feature_cols:list, test_size=0.2, random_state  = 42,**kwargs):
+        """
+        Splits the DataFrame into training and testing sets.
+
+        Parameters:
+        df (pd.DataFrame): The input DataFrame.
+        target_col (str): The name of the target column.
+        feature_cols (list): List of feature column names.
+        test_size (float): Proportion of the dataset to include in the test split.
+        random_state (int, optional): Random seed for reproducibility.
+
+        Returns:
+        X_train, X_test, y_train, y_test: Split data.
+        """
+        if not feature_cols:
+            raise ValueError("feature_cols list cannot be empty.")
+        if target_col not in df.columns:
+            raise ValueError(f"Target column '{target_col}' not found in data.")
+        for col in feature_cols:
+            if col not in df.columns:
+                raise ValueError(f"Feature column '{col}' not found in data.")
+ 
+        X = df[feature_cols]
+        y = df[target_col]
+        
+        return train_test_split(X, y, test_size = test_size, random_state = random_state, **kwargs)
     
+    X_train, X_test, y_train, y_test = __train_test_split__(
+        final_df, 'log_share_ratio', endogenous_var + exogenous_var, test_size=0.33, random_state=42
+    )
 
-    # Example usage:
-    # Suppose your target is 'price' and features are all columns except 'price'
-    target_col = 'price'
-    feature_cols = [col for col in final_df.columns if col != target_col]
-    linear_model = train_linear_regression(final_df, target_col, feature_cols)
+    OLS_base = LinearModel()
 
+    OLS_base.train(X_train, y_train)
 
-
-    # Train model
-    model_name = 'xgboost'
-    trained_model = dp.train_selected_model(model_name, X_train, y_train, **config['model_params'])
-
+    OLS_predictions = OLS_base.predict(X_test, endogenous_var + exogenous_var)
     # %%
     # Set the MLflow tracking URI to localhost with the desired port (e.g., 5000)
     import mlflow
