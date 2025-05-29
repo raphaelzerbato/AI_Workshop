@@ -4,6 +4,7 @@ from data_preprocessing.data_prepro_func import load_data, load_config
 from instrument_creation.init_instrument_creation import init_instrument_creation
 import pandas as pd
 import mlflow
+import numpy as np
 
 # %%
 if __name__ == "__main__":
@@ -25,11 +26,18 @@ if __name__ == "__main__":
 
     # %%
     # preprocessing the data
-    preprocess_df, endogenous_var, exogenous_var, added_depvar = init_data_preprocessing(data_config, cars_db)
+    preprocess_df, endogenous_var, exogenous_var, added_depvar = init_data_preprocessing(
+        data_config, 
+        cars_db
+        )
 
     # %%
      # Extract instruments
-    Z, instrument_vars = init_instrument_creation(preprocess_df, exogenous_var, data_config['instrument_creation']['twodegree_polynomial_instruments'])
+    Z, instrument_vars = init_instrument_creation(
+        preprocess_df, 
+        exogenous_var, 
+        data_config['instrument_creation']['twodegree_polynomial_instruments']
+        )
     
     # %%
     # Finalize the dataframe
@@ -98,17 +106,72 @@ if __name__ == "__main__":
     # Run simple OLS regression on the final_df
     from models_IV.OLS import LinearModel
    
-    OLS_base = LinearModel(target_col= 'log_share_ratio', feature_cols = endogenous_var + exogenous_var, test_size = 0.2, random_state = 42)
+    OLS_base = LinearModel(
+        target_col='log_share_ratio',
+        feature_cols=endogenous_var + exogenous_var,
+        test_size=model_config['base_model']['test_size'],
+        random_state=model_config['base_model']['random_state'],
+    )
 
-    OLS_base._train_test_split(final_df)
+    OLS_base._train_test_split(
+        final_df
+    )
     
-    OLS_base.train(OLS_base.X_train, OLS_base.y_train)
+    OLS_base.train(
+        OLS_base.X_train,
+        OLS_base.y_train
+    )
     
-    prediction = OLS_base._predict(OLS_base.X_test, OLS_base.feature_cols)
+    prediction = OLS_base._predict(
+        OLS_base.X_test, 
+        OLS_base.feature_cols
+    )
     
-    OLS_base.evaluate(OLS_base.y_test, prediction)
+    OLS_base.evaluate(
+        OLS_base.y_test, 
+        prediction
+    )
+    
+    OLS_base.regression_summary(
+        OLS_base.model,
+        OLS_base.X_test,
+        OLS_base.y_test,
+        feature_names=OLS_base.feature_cols
+    )
+    # %%[markdown]
+    # Selection des variables de X, Z dans l'equation du prix (2)
+    #Un des motifs pour recourir à une telle sélection basée sur les données est la présence d'un trop grand nombre  de variables exogènes dans l'équation du prix par rapport à la taille de l'échantillon. 
+    #Voici le probleme de moindres carrés regularizés lorsqu'on recours à une regularisation d'elastic-net:
+    #$$\min_{\gamma} \sum_{j,t} \left(P_{jt} - (X_{jt}^{T}, Z_{jt}^{T})\gamma \right)^{2} + \lambda \left(\alpha \sum_{k}|\gamma_{k}| +  (1-\alpha)\sum_{k}\gamma_{k}^{2}\right)$$
+    #Les regularisation de Lasso ($\alpha=1$) et Ridge ($\alpha=0$) sont des cas particuliers
+    # %%
+    from models_IV.LassoCV import LassoCVModel
+    
+    lasso_model = LassoCVModel(
+        target_col='sellingprice',
+        feature_cols=instrument_vars + exogenous_var,
+        test_size=model_config['base_model']['test_size'],
+        random_state=model_config['base_model']['random_state'],
+        # parameters for LassoCV
+        cv=model_config['cv_lasso']['cv'],
+        alphas=np.power(2.0, np.linspace(-15, 1, 100)),
+        max_iter=model_config['cv_lasso']['max_iter'],
+        n_jobs=model_config['cv_lasso']['n_jobs']
+    )
 
-    OLS_base.regression_summary(OLS_base.model, OLS_base.X_test, OLS_base.y_test, feature_names=OLS_base.feature_cols)
+    lasso_model._train_test_split(final_df)
+
+    lasso_model.train(lasso_model.X_train, lasso_model.y_train)
+
+    metrics = lasso_model.evaluate(lasso_model.X_train, lasso_model.y_train, lasso_model.X_test, lasso_model.y_test)
+
+    print(metrics)
+    lasso_model.plot_cv_path()
+    print(lasso_model.coefs)
+
+    prediction_lasso = lasso_model._predict(lasso_model.X_test)
+    lasso_model.plot_true_predicted(lasso_model.y_test, prediction_lasso)
+    l=gigu
     # %%
     # Set the MLflow tracking URI to localhost with the desired port (e.g., 5000)
     import mlflow
