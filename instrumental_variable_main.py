@@ -103,10 +103,12 @@ if __name__ == "__main__":
     OLS_base._train_test_split(final_df)
     
     OLS_base.train(OLS_base.X_train, OLS_base.y_train)
+    
+    prediction = OLS_base._predict(OLS_base.X_test, OLS_base.feature_cols)
+    
+    OLS_base.evaluate(OLS_base.y_test, prediction)
 
-    OLS_predictions = OLS_base.predict(OLS_base.X_test, endogenous_var + exogenous_var)
-
-
+    OLS_base.regression_summary(OLS_base.model, OLS_base.X_test, OLS_base.y_test, feature_names=OLS_base.feature_cols)
     # %%
     # Set the MLflow tracking URI to localhost with the desired port (e.g., 5000)
     import mlflow
