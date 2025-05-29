@@ -1,32 +1,36 @@
 from sklearn.linear_model import LinearRegression
 from models_IV.base_model import BaseModel
+import numpy as np
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 class LinearModel(BaseModel):
     def __init__(self,**kwargs):
         self.model = LinearRegression(**kwargs)
 
-    def fit(self, train_data, target_col, feature_cols, **kwargs):
+    def preprocess(self):
+        """
+        Abstract method to preprocess input data.
+
+        Parameters:
+            X (pandas.DataFrame): Input features to preprocess.
+
+        Returns:
+            Preprocessed data (type depends on implementation).
+        """
+        pass    
+
+    def train(self, X, y, **kwargs):
         """
         Fits the linear model to the provided data.
 
         Parameters:
         data (pd.DataFrame): The input data containing features and target.
-        target_col (str): The name of the target column.
-        feature_cols (list): List of feature column names.
+        X (pd.DataFrame): Features for training.
+        y (pd.Series): Target variable for training.
 
         Returns:
         self: Returns the instance itself.
         """
-        if not feature_cols:
-            raise ValueError("feature_cols list cannot be empty.")
-        if target_col not in train_data.columns:
-            raise ValueError(f"Target column '{target_col}' not found in data.")
-        for col in feature_cols:
-            if col not in train_data.columns:
-                raise ValueError(f"Feature column '{col}' not found in data.")
-
-        X = train_data[feature_cols   ]   
-        y = train_data[target_col]
         self.model.fit(X, y, **kwargs)
         return self
     
@@ -36,4 +40,16 @@ class LinearModel(BaseModel):
         
         X = test_data[feature_cols]
         return self.model.predict(X)
+    
+    def evaluate(self, y_true, y_hat):
+        """
+        Evaluates the model using the provided features and target variable.   
+        """ 
+        return {
+        'MAE': mean_absolute_error(y_true, y_hat),
+        'MSE': mean_squared_error(y_true, y_hat),
+        'RMSE': np.sqrt(mean_squared_error(y_true, y_hat)),
+        'R2': r2_score(y_true, y_hat)
+    }
+
 

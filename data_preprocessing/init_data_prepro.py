@@ -1,7 +1,6 @@
-import preprocessing.preprocessing_functions as dp
-from preprocessing.preprocessing_functions import *
+import data_preprocessing.data_prepro_func as dp
 
-def init_preprocessing(data_config, cars_db):
+def init_data_preprocessing(data_config, cars_db):
     """
     Initialize preprocessing functions and configurations.
     This function is called at the start of the preprocessing pipeline and 
@@ -56,15 +55,15 @@ def init_preprocessing(data_config, cars_db):
     df_one_hot, added_exo_dummies, excluded_exo_main = dp.one_hot_encoder(df, exo_cats)
     df_one_hot, added_endo_dummies, excluded_endo_main = dp.one_hot_encoder(df_one_hot, endo_cats)
 
-    endogenous_var = update_list(data_config['var_of_interest']['endog'],
+    endogenous_var = dp.update_list(data_config['var_of_interest']['endog'],
                                 added_endo_dummies,
                                 endo_cats)
     
-    exogenous_var = update_list(data_config['var_of_interest']['exog'],
+    exogenous_var = dp.update_list(data_config['var_of_interest']['exog'],
                                 added_exo_dummies,
                                 exo_cats)
     
     # %%
-    df_one_hot, added_depvar = compute_sales_marketshare(df_one_hot, data_config, aggfunc='mean')
+    df_one_hot, added_depvar = dp.compute_sales_marketshare(df_one_hot, data_config, aggfunc='mean')
     
     return df_one_hot, endogenous_var, exogenous_var, added_depvar
