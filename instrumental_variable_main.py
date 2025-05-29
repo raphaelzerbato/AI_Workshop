@@ -97,45 +97,16 @@ if __name__ == "__main__":
     # %%
     # Run simple OLS regression on the final_df
     from models_IV.OLS import LinearModel
-    from sklearn.model_selection import train_test_split
+   
+    OLS_base = LinearModel(target_col= 'log_share_ratio', feature_cols = endogenous_var + exogenous_var, test_size = 0.2, random_state = 42)
 
+    OLS_base._train_test_split(final_df)
     
-    def __train_test_split__(df, target_col:str, feature_cols:list, test_size=0.2, random_state  = 42,**kwargs):
-        """
-        Splits the DataFrame into training and testing sets.
+    OLS_base.train(OLS_base.X_train, OLS_base.y_train)
 
-        Parameters:
-        df (pd.DataFrame): The input DataFrame.
-        target_col (str): The name of the target column.
-        feature_cols (list): List of feature column names.
-        test_size (float): Proportion of the dataset to include in the test split.
-        random_state (int, optional): Random seed for reproducibility.
+    OLS_predictions = OLS_base.predict(OLS_base.X_test, endogenous_var + exogenous_var)
 
-        Returns:
-        X_train, X_test, y_train, y_test: Split data.
-        """
-        if not feature_cols:
-            raise ValueError("feature_cols list cannot be empty.")
-        if target_col not in df.columns:
-            raise ValueError(f"Target column '{target_col}' not found in data.")
-        for col in feature_cols:
-            if col not in df.columns:
-                raise ValueError(f"Feature column '{col}' not found in data.")
- 
-        X = df[feature_cols]
-        y = df[target_col]
-        
-        return train_test_split(X, y, test_size = test_size, random_state = random_state, **kwargs)
-    
-    X_train, X_test, y_train, y_test = __train_test_split__(
-        final_df, 'log_share_ratio', endogenous_var + exogenous_var, test_size=0.33, random_state=42
-    )
 
-    OLS_base = LinearModel()
-
-    OLS_base.train(X_train, y_train)
-
-    OLS_predictions = OLS_base.predict(X_test, endogenous_var + exogenous_var)
     # %%
     # Set the MLflow tracking URI to localhost with the desired port (e.g., 5000)
     import mlflow

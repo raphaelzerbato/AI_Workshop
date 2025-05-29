@@ -4,10 +4,11 @@ import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 class LinearModel(BaseModel):
-    def __init__(self,**kwargs):
+    def __init__(self, target_col: str, feature_cols: list, test_size: float = 0.2, random_state: int = 42, **kwargs):
+        super().__init__(target_col, feature_cols, test_size, random_state)
         self.model = LinearRegression(**kwargs)
 
-    def preprocess(self):
+    def __preprocess(self):
         """
         Abstract method to preprocess input data.
 
