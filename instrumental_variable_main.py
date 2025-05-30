@@ -48,6 +48,8 @@ if __name__ == "__main__":
         + exogenous_var
     ].reset_index(drop=True).join(Z.reset_index(drop=True))
 
+    final_df[['sellingprice','odometer']]=final_df[['sellingprice','odometer']]/10000
+
     # %%[markdown]
     # ---
     # ---
@@ -116,6 +118,7 @@ if __name__ == "__main__":
         test_size=model_config['base_model']['test_size'],
         random_state=model_config['base_model']['random_state'],
     )
+
     # %%
     OLS_base._train_test_split(
         final_df
@@ -150,11 +153,12 @@ if __name__ == "__main__":
     #$$\min_{\gamma} \sum_{j,t} \left(P_{jt} - (X_{jt}^{T}, Z_{jt}^{T})\gamma \right)^{2} + \lambda \left(\alpha \sum_{k}|\gamma_{k}| +  (1-\alpha)\sum_{k}\gamma_{k}^{2}\right)$$
     #Les regularisation de Lasso ($\alpha=1$) et Ridge ($\alpha=0$) sont des cas particuliers
     # %%
-    from models_IV.LassoCV import LassoCVModel
+    from models_IV.LassoCV2 import LassoCVModel
     
     lasso_model = LassoCVModel(
         target_col='sellingprice',
         feature_cols=instrument_vars + exogenous_var,
+        unpenalized_cols=exogenous_var,
         test_size=model_config['base_model']['test_size'],
         random_state=model_config['base_model']['random_state'],
         # parameters for LassoCV
@@ -163,19 +167,50 @@ if __name__ == "__main__":
         max_iter=model_config['cv_lasso']['max_iter'],
         n_jobs=model_config['cv_lasso']['n_jobs']
     )
-
+    # %%
     lasso_model._train_test_split(final_df)
 
     lasso_model.train(lasso_model.X_train, lasso_model.y_train)
-
+    
     metrics = lasso_model.evaluate(lasso_model.X_train, lasso_model.y_train, lasso_model.X_test, lasso_model.y_test)
-
+    
     print(metrics)
     lasso_model.plot_cv_path()
     print(lasso_model.coefs)
 
     prediction_lasso = lasso_model._predict(lasso_model.X_test)
     lasso_model.plot_true_predicted(lasso_model.y_test, prediction_lasso)
+
+
+    # %%
+
+    from models_IV.RandomForest import RandomForestModel
+    
+    rf_model = RandomForestModel(
+        target_col='sellingprice',
+        feature_cols=instrument_vars + exogenous_var,
+        test_size=model_config['base_model']['test_size'],
+        random_state=model_config['base_model']['random_state'],
+        # parameters for RandomForestRegressor
+        n_estimators=model_config['randomforest']['n_estimators'],
+        max_depth=model_config['randomforest']['max_depth'],
+        min_samples_split=model_config['randomforest']['min_samples_split'],
+        min_samples_leaf=model_config['randomforest']['min_samples_leaf'],
+        bootstrap=model_config['randomforest']['bootstrap'],
+        n_jobs=model_config['randomforest']['n_jobs']
+    )
+    # %%
+    rf_model._train_test_split(final_df)
+    # %%
+    rf_model.train(rf_model.X_train, rf_model.y_train)
+    # %%
+    metrics = rf_model.evaluate(rf_model.X_train, rf_model.y_train, rf_model.X_test, rf_model.y_test)
+    # %%
+    print(metrics)
+    # %%
+    prediction_rf = rf_model._predict(rf_model.X_test)
+    rf_model.plot_true_predicted(rf_model.y_test, prediction_rf)
+    # %%
 
     # %%
     # Set the MLflow tracking URI to localhost with the desired port (e.g., 5000)
