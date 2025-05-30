@@ -151,6 +151,8 @@ if __name__ == "__main__":
         OLS_base.y_test,
         feature_names=OLS_base.feature_cols
     )
+
+
     # %%[markdown]
     # Selection des variables de X, Z dans l'equation du prix (2)
     #Un des motifs pour recourir à une telle sélection basée sur les données est la présence d'un trop grand nombre  de variables exogènes dans l'équation du prix par rapport à la taille de l'échantillon. 
@@ -204,18 +206,49 @@ if __name__ == "__main__":
         bootstrap=model_config['randomforest']['bootstrap'],
         n_jobs=model_config['randomforest']['n_jobs']
     )
-    # %%
+    
     rf_model._train_test_split(final_df)
     # %%
     rf_model.train(rf_model.X_train, rf_model.y_train)
-    # %%
+
     metrics = rf_model.evaluate(rf_model.X_train, rf_model.y_train, rf_model.X_test, rf_model.y_test)
-    # %%
+
     print(metrics)
-    # %%
+
     prediction_rf = rf_model._predict(rf_model.X_test)
     rf_model.plot_true_predicted(rf_model.y_test, prediction_rf)
+    
+        
+    # %% [markdown]
+    # ---
+    # ---
+    # # Réduction de dimension des prédicteurs du prix: Analyse en Composantes Principales, ACP (PCA en anglais)
+    # 
+    # On applique l'ACP pour réduire la dimension des prédicteurs du prix. La réduction du nombre de variables pourrait nous donner plus de flexibilité dans la prédiction du prix.
+    # 
+    # Soit $U$ la matrice des prédicteurs du prix (par exemple les variables $X$ et $Z$). L'analyse en composantes principales (ACP) consiste à trouver une matrice orthonormée $P$ telle que $V = UP$ soit une transformation linéaire de $U$ vers un nouvel espace dans lequel les composantes sont non corrélées et ordonnées par variance décroissante.
+    # 
+    # La matrice $V$ est appelée matrice des composantes principales. Si l'on conserve les $v$ premières colonnes de $V$, on obtient une représentation de $U$ dans un espace de dimension réduite qui préserve le plus possible la variance initiale. Cette représentation est optimale au sens où aucune autre combinaison de $v$ vecteurs quelconques ne permet de conserver davantage de variance.
+
+
     # %%
+
+    from models_IV.PCA import PCAWrapper
+    
+    pca_model = PCAWrapper(
+        variance_ratio_preserved=0.95, 
+        test_size=model_config['base_model']['test_size'],
+        feature_cols=instrument_vars + exogenous_var
+        )
+
+    pca_model._train_test_split(final_df)
+
+    # %%
+    pca_model.fit(pca_model.X_train)
+
+    # (Optional) Plot variance explained
+    pca_model.plot_variance_explained()
+
 
     # %%[markdown]
     #---
@@ -224,9 +257,18 @@ if __name__ == "__main__":
     # %%
     from model_evaluation.evaluation_functions import *
 
-    price_train_predicted = Y_train_pred.copy()
+    price_train_predicted = pd.Series(
+        OLS_base._predict(OLS_base.X_train, OLS_base.feature_cols),
+          name=endogenous_var[-1]
+        )
+    
+    X_train = pd.DataFrame(OLS_base.X_train, columns=OLS_base.feature_cols)
+
+    Y_train = pd.Series(OLS_base)
+    
 
     model, coefs, _ = regress_demand(data_train[endogvars+exogvars], data_train[depvars[-1]], price_train_predicted)
+
 
     # %%
     # Set the MLflow tracking URI to localhost with the desired port (e.g., 5000)

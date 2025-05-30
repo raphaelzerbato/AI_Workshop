@@ -16,3 +16,5 @@ mlruns/
 .htmlcar_prices.csv
 *.csv
 *.htmlcar_prices.csv
+git remote -v
+remote -v.pub
