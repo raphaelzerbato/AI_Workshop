@@ -69,7 +69,7 @@ def demande_evaluation(trained_OLS_model, exogenous_prediction=None):
     
     X_train_new = trained_OLS_model.X_train.copy()
 
-    if ~np.all(exogenous_prediction==None):
+    if not np.all(exogenous_prediction == None):
         X_train_new[exogenous_prediction.name] = exogenous_prediction
 
     trained_OLS_model.train(X_train_new, trained_OLS_model.y_train)
@@ -95,6 +95,79 @@ def demande_evaluation(trained_OLS_model, exogenous_prediction=None):
     coefs.columns = ['coef','coef-pvalue','wtp','wtp-pvalue']
  
     return IV2_steps, coefs, Y_train_pred
+
+
+def demande_evaluation_LASSO(trained_LASSO_model, exogenous_prediction=None):
+
+    """
+    OLS-estimate a demand model with a simple logit specification, i.e.
+    Log(S) - Log(S_o) = X'Betax + Betap*P + epsilon
+
+    Arguments:
+        - X_train (pd.DataFrame): matrix of regressors, including the 'sellingprice' column
+        - Y_train (pd.Series): dependent variable column, Log(S) - Log(S_o)
+        - price_train_predicted (None or pd.Series): an exogenous prediction of the 'sellingprice' column
+            - if pd.Series, then the 'sellingprice' column in X_train will be replaced by price_train_predicted before estimation
+                - the resulting econometric method is a 2SLS where the price is endogenous
+            - if None, then the 'sellingprice' column in X_train remains unchanged
+                - the resulting econometric method is an OLS where the price is exogenous
+
+    Returns:
+        - model (statsmodels.regression.linear_model.RegressionResultsWrapper): the estimated model
+        - coefs (pd.DataFrame): dataframe with
+            - estimated coefficients and their p-values,
+            - estimated marginal willingnesses to pay and their p-values
+        - Y_train_pred (pd.Series): prediction of dependent column in training sample
+
+    Note:
+        - the willingness to pay associated with a product attribute k in X is the ratio between the coef of k and the coef of the 'sellingprice' column
+    """
+    from statsmodels.regression.linear_model import LinearModel
+    
+    X_train_new = trained_LASSO_model.X_train.copy()
+    y_train_new = trained_LASSO_model.y_train.copy()
+
+    if not np.all(exogenous_prediction == None):
+        X_train_new[exogenous_prediction.name] = exogenous_prediction
+
+    training_features = X_train_new.colnames
+
+    IV2_steps = LinearModel(
+        target_col='log_share_ratio',
+        feature_cols = training_features,
+        test_size = 0.2,
+        random_state = 42
+    )
+    
+    IV2_steps.X_train = X_train_new
+    IV2_steps.y_train = y_train_new
+    
+    IV2_steps.train(
+        IV2_steps.X_train,
+        IV2_steps.y_train
+    )
+   # %% 
+    Y_train_pred = IV2_steps._predict(
+        IV2_steps.X_test, 
+        IV2_steps.feature_cols
+    )
+
+    wtp_values = compute_wtp_pvalues(
+        IV2_steps, 
+        target_variable='sellingprice'
+    )
+
+    IV2_steps.compute_pvalues(
+        IV2_steps,
+        IV2_steps.X_train,
+        IV2_steps.y_train
+    )
+    # Merge coefs, WTP (willingness to pay) and their pvalues
+    coefs = pd.concat([coefs, IV2_steps.pvalues,  coefs/np.abs(coefs['sellingprice']), wtp_values], axis=1)
+    coefs.columns = ['coef','coef-pvalue','wtp','wtp-pvalue']
+ 
+    return IV2_steps, coefs, Y_train_pred
+
 
 def compute_wtp_pvalues(linear_model:LinearModel, target_variable='sellingprice') -> pd.Series:
     # il faut que je change target variable pour que cela soit un attribut
