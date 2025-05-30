@@ -7,7 +7,7 @@ from scipy import stats
 
 class LinearModel(BaseModel):
     def __init__(self, target_col: str, feature_cols: list, test_size: float = 0.2, random_state: int = 42, **kwargs):
-        super().__init__(target_col, feature_cols, test_size, random_state)
+        super().__init__(target_col, feature_cols, test_size, random_state, **kwargs)
         self.model = LinearRegression(**kwargs)
 
     def __preprocess(self):
@@ -44,6 +44,81 @@ class LinearModel(BaseModel):
         X = test_data[feature_cols]
         return self.model.predict(X)
     
+    def compute_covariance_matrix(self, X_train, y_train):
+        """
+        Computes the covariance matrix of the model parameters.
+
+        Parameters:
+        X (pd.DataFrame): Features used to fit the model.
+        y (pd.Series): Target variable used to fit the model.
+
+        Returns:
+        cov_matrix (pd.DataFrame): Covariance matrix of the model parameters.
+        """
+        n, k = X_train.shape
+        y_pred = self.model.predict(X_train)
+        residuals = y_train - y_pred
+        RSS = np.sum(residuals ** 2)
+        
+        # Compute covariance matrix
+        XtX_inv = np.linalg.inv(X_train.T @ X_train)
+        cov_matrix = RSS / (n - k) * XtX_inv
+        self.varcovar_mat = pd.DataFrame(
+            cov_matrix,
+            index=self.model.feature_names_in_, 
+            columns=self.model.feature_names_in_
+            )
+        
+        return self.varcovar_mat
+        
+    def compute_pvalues(self, X_train, y_train):
+        """
+        Compute p-values for coefficients in a sklearn LinearRegression model.
+
+        Parameters:
+            X (pd.DataFrame or np.ndarray): Feature matrix
+            y (pd.Series or np.ndarray): Target vector
+            model (LinearRegression): A fitted sklearn model
+
+        Returns:
+            pd.Series: p-values for each coefficient
+        """
+        # Add intercept manually if the model includes it
+        if self.model.fit_intercept:
+            X = np.column_stack((np.ones(X.shape[0]), X))
+            feature_names = ['Intercept'] + list(getattr(self.model, 'feature_names_in_', [f"x{i}" for i in range(X.shape[1]-1)]))
+        else:
+            feature_names = list(getattr(self.model, 'feature_names_in_', [f"x{i}" for i in range(X.shape[1])]))
+
+        # Predictions and residuals
+        y_pred = self.model.predict(X_train)
+        residuals = y_train - y_pred
+
+        # Degrees of freedom
+        n = X.shape[0]
+        k = X.shape[1]
+        dof = n - k
+
+        # Estimate variance of residuals
+        residual_var = np.sum(residuals**2) / dof
+
+        # Variance-covariance matrix
+        XTX_inv = np.linalg.inv(X.T @ X)
+        var_b = residual_var * XTX_inv
+
+        # Standard errors
+        se_b = np.sqrt(np.diag(var_b))
+
+        # t-statistics
+        t_stats = self.model.coef_ if not self.model.fit_intercept else np.insert(self.model.coef_, 0, self.model.intercept_)
+        t_stats = t_stats / se_b
+
+        # Two-tailed p-values
+        p_values = 2 * (1 - stats.t.cdf(np.abs(t_stats), df=dof))
+        self.pvalues =pd.Series(p_values, index=feature_names)
+        
+        return self
+        
     def evaluate(self, y_true, y_hat):
         """
         Evaluates the model using the provided features and target variable.   
@@ -125,6 +200,7 @@ class LinearModel(BaseModel):
 
         print(f"\nR²: {R2:.4f}, Adjusted R²: {adj_R2:.4f}, Observations: {n}")
         return summary_df
+    
 
 
 

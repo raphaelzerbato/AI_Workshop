@@ -4,7 +4,14 @@ import pandas as pd
 
 class BaseModel(ABC):
      
-    def __init__(self, target_col: str, feature_cols: list, test_size: float = 0.2, random_state: int = 42):
+    def __init__(
+            self,
+            target_col: str,
+            feature_cols: list, 
+            test_size: float = 0.2, 
+            random_state: int = 42
+        ):
+        
         if not feature_cols:
             raise ValueError("feature_cols list cannot be empty.")
         self.target_col = target_col
@@ -20,6 +27,21 @@ class BaseModel(ABC):
         )
         return self.X_train, self.X_test, self.y_train, self.y_test
     
+    def copy(self):
+        """
+        Creates a shallow copy of the model instance with the same initialization parameters.
+
+        Returns:
+            A new instance of the same class with copied initialization parameters.
+        """
+        return self.__class__(
+            target_col=self.target_col,
+            feature_cols=self.feature_cols,
+            test_size=self.test_size,
+            random_state=self.random_state,
+            **self.extra_init_args
+        )
+
     @abstractmethod
     def train(self, X, y):
         pass

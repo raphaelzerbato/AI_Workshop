@@ -1,10 +1,9 @@
 # %%
-from data_preprocessing.init_data_prepro import init_data_preprocessing
-from data_preprocessing.data_prepro_func import load_data, load_config
-from instrument_creation.init_instrument_creation import init_instrument_creation
 import pandas as pd
 import mlflow
 import numpy as np
+from data_preprocessing.init_data_prepro import init_data_preprocessing
+from data_preprocessing.data_prepro_func import load_data, load_config
 
 # %%
 if __name__ == "__main__":
@@ -32,6 +31,7 @@ if __name__ == "__main__":
         )
 
     # %%
+    from instrument_creation.instrument_creation_functions import *
      # Extract instruments
     Z, instrument_vars = init_instrument_creation(
         preprocess_df, 
@@ -131,6 +131,11 @@ if __name__ == "__main__":
         OLS_base.y_test, 
         prediction
     )
+
+    OLS_base.compute_covariance_matrix(   
+        OLS_base.X_train,
+        OLS_base.y_train
+    )
     
     OLS_base.regression_summary(
         OLS_base.model,
@@ -171,7 +176,17 @@ if __name__ == "__main__":
 
     prediction_lasso = lasso_model._predict(lasso_model.X_test)
     lasso_model.plot_true_predicted(lasso_model.y_test, prediction_lasso)
-    l=gigu
+    # %%[markdown]
+    #---
+    #### Régression de la demande après remplacement du prix par sa prédiction exogène obtenue 
+    # par regression Lasso
+    # %%
+    from model_evaluation.evaluation_functions import *
+
+    price_train_predicted = Y_train_pred.copy()
+
+    model, coefs, _ = regress_demand(data_train[endogvars+exogvars], data_train[depvars[-1]], price_train_predicted)
+
     # %%
     # Set the MLflow tracking URI to localhost with the desired port (e.g., 5000)
     import mlflow
