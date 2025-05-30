@@ -12,15 +12,15 @@ if __name__ == "__main__":
     load data and config
     """
     # Load config
-    model_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/model_config.yaml'
+    model_config_path = 'config/model_config.yaml'
     model_config = load_config(model_config_path)
 
     # Load data config
-    data_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/data_config.yaml'
+    data_config_path = 'config/data_config.yaml'
     data_config = load_config(data_config_path)
 
     # load data
-    cars_file_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/data/data_cars/car_prices.csv'
+    cars_file_path = cars_file_path = data_config['loading_path_data']['data_cars']
     cars_db        = load_data(cars_file_path)
 
     # %%
@@ -48,7 +48,11 @@ if __name__ == "__main__":
         + exogenous_var
     ].reset_index(drop=True).join(Z.reset_index(drop=True))
 
+    final_df[['sellingprice','odometer']]=final_df[['sellingprice','odometer']]/10000
+
     # %%[markdown]
+    # ---
+    # ---
     # # Le modèle structurel de la demande
     # Sur le marché $t$, le consommateur $i$ choisit entre les voitures de $J$ marques $1, ..., J$ et dispose également d'une option extérieure $0$ (c’est-à-dire ne pas acheter de voiture). L’utilité indirecte qui décrit les préférences du consommateur est donnée par :
     # $$
@@ -97,6 +101,8 @@ if __name__ == "__main__":
     # - Approximation plus flexible de $\mathbb{E}[P_{jt} \mid X_{t}, Z_{jt}]$ pour relâcher l’hypothèse de linéarité, en utilisant des mesures de performance hors échantillon
 
     # %%[markdown]
+    # ---
+    # ---
     # # Estimation de l'equation (3) par MCO sans remplacer $P_{jt}$ par $\hat{P}_{jt}$
 
     # Voici le probleme de moindres carres a resoudre:
@@ -113,20 +119,22 @@ if __name__ == "__main__":
         random_state=model_config['base_model']['random_state'],
     )
 
+    # %%
     OLS_base._train_test_split(
         final_df
     )
+    # %%# %%
     
     OLS_base.train(
         OLS_base.X_train,
         OLS_base.y_train
     )
-    
+   # %% 
     prediction = OLS_base._predict(
         OLS_base.X_test, 
         OLS_base.feature_cols
     )
-    
+    # %%
     OLS_base.evaluate(
         OLS_base.y_test, 
         prediction
@@ -150,11 +158,12 @@ if __name__ == "__main__":
     #$$\min_{\gamma} \sum_{j,t} \left(P_{jt} - (X_{jt}^{T}, Z_{jt}^{T})\gamma \right)^{2} + \lambda \left(\alpha \sum_{k}|\gamma_{k}| +  (1-\alpha)\sum_{k}\gamma_{k}^{2}\right)$$
     #Les regularisation de Lasso ($\alpha=1$) et Ridge ($\alpha=0$) sont des cas particuliers
     # %%
-    from models_IV.LassoCV import LassoCVModel
+    from models_IV.LassoCV2 import LassoCVModel
     
     lasso_model = LassoCVModel(
         target_col='sellingprice',
         feature_cols=instrument_vars + exogenous_var,
+        unpenalized_cols=exogenous_var,
         test_size=model_config['base_model']['test_size'],
         random_state=model_config['base_model']['random_state'],
         # parameters for LassoCV
@@ -163,19 +172,51 @@ if __name__ == "__main__":
         max_iter=model_config['cv_lasso']['max_iter'],
         n_jobs=model_config['cv_lasso']['n_jobs']
     )
-
+    # %%
     lasso_model._train_test_split(final_df)
 
     lasso_model.train(lasso_model.X_train, lasso_model.y_train)
-
+    
     metrics = lasso_model.evaluate(lasso_model.X_train, lasso_model.y_train, lasso_model.X_test, lasso_model.y_test)
-
+    
     print(metrics)
     lasso_model.plot_cv_path()
     print(lasso_model.coefs)
 
     prediction_lasso = lasso_model._predict(lasso_model.X_test)
     lasso_model.plot_true_predicted(lasso_model.y_test, prediction_lasso)
+
+
+    # %%
+
+    from models_IV.RandomForest import RandomForestModel
+    
+    rf_model = RandomForestModel(
+        target_col='sellingprice',
+        feature_cols=instrument_vars + exogenous_var,
+        test_size=model_config['base_model']['test_size'],
+        random_state=model_config['base_model']['random_state'],
+        # parameters for RandomForestRegressor
+        n_estimators=model_config['randomforest']['n_estimators'],
+        max_depth=model_config['randomforest']['max_depth'],
+        min_samples_split=model_config['randomforest']['min_samples_split'],
+        min_samples_leaf=model_config['randomforest']['min_samples_leaf'],
+        bootstrap=model_config['randomforest']['bootstrap'],
+        n_jobs=model_config['randomforest']['n_jobs']
+    )
+    # %%
+    rf_model._train_test_split(final_df)
+    # %%
+    rf_model.train(rf_model.X_train, rf_model.y_train)
+    # %%
+    metrics = rf_model.evaluate(rf_model.X_train, rf_model.y_train, rf_model.X_test, rf_model.y_test)
+    # %%
+    print(metrics)
+    # %%
+    prediction_rf = rf_model._predict(rf_model.X_test)
+    rf_model.plot_true_predicted(rf_model.y_test, prediction_rf)
+    # %%
+
     # %%[markdown]
     #---
     #### Régression de la demande après remplacement du prix par sa prédiction exogène obtenue 

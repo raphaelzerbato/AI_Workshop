@@ -16,7 +16,7 @@ class LassoCVModel(BaseModel):
         super().__init__(target_col, feature_cols, test_size, random_state)
         self.scaler = StandardScaler()
         self.model = LassoCV(
-            **lasso_kwargs  
+            random_state=random_state, **lasso_kwargs  
         )
         self.best_alpha = None
         self.coefs = None
@@ -58,8 +58,8 @@ class LassoCVModel(BaseModel):
         y_test_pred = self._predict(X_test)
 
         metrics = {
-            "Train RMSE": mean_squared_error(y_train, y_train_pred),
-            "Test RMSE": mean_squared_error(y_test, y_test_pred),
+            "Train MSE": mean_squared_error(y_train, y_train_pred),
+            "Test MSE": mean_squared_error(y_test, y_test_pred),
             "Train R^2": r2_score(y_train, y_train_pred),
             "Test R^2": r2_score(y_test, y_test_pred)
         }
@@ -74,7 +74,7 @@ class LassoCVModel(BaseModel):
         
         plt.plot(log_alphas, mean_mse, label='Mean CV MSE', marker='o')
         plt.fill_between(log_alphas, mean_mse - std_mse, mean_mse + std_mse, color='lightgray', label='±1 std dev')
-        plt.axvline(np.log2(self.model.best_alpha), linestyle='--', color='red', label=f'Best lambda = {self.model.best_alpha:.5f}')
+        plt.axvline(np.log2(self.best_alpha), linestyle='--', color='red', label=f'Best lambda = {self.best_alpha:.5f}')
         plt.xlabel('Log2(Alpha)')
         plt.xlabel('Log2(Alpha)')
         plt.ylabel('Mean Squared Error (CV)')

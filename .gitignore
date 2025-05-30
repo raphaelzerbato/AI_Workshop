@@ -8,6 +8,11 @@ __pycache__/
 .env
 .venv.ipynb_checkpoints/
 .ipynb_checkpoints/
+.venv.ipynb_checkpoints/
+.ipynb_checkpoints/
 .venv
 .DS_Store mlflow==2.14.0rc0
 mlruns/
+.htmlcar_prices.csv
+*.csv
+*.htmlcar_prices.csv
