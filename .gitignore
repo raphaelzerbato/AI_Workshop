@@ -12,3 +12,5 @@ __pycache__/
 .DS_Store mlflow==2.14.0rc0
 mlruns/
 .htmlcar_prices.csv
+*.csv
+*.htmlcar_prices.csv
