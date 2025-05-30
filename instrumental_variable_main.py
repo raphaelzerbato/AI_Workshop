@@ -13,15 +13,15 @@ if __name__ == "__main__":
     load data and config
     """
     # Load config
-    model_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/model_config.yaml'
+    model_config_path = 'config/model_config.yaml'
     model_config = load_config(model_config_path)
 
     # Load data config
-    data_config_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/config/data_config.yaml'
+    data_config_path = 'config/data_config.yaml'
     data_config = load_config(data_config_path)
 
     # load data
-    cars_file_path = 'C:/Users/rapha/PythonTutos/AI_Workshop/data/data_cars/car_prices.csv'
+    cars_file_path = cars_file_path = data_config['loading_path_data']['data_cars']
     cars_db        = load_data(cars_file_path)
 
     # %%
@@ -49,6 +49,8 @@ if __name__ == "__main__":
     ].reset_index(drop=True).join(Z.reset_index(drop=True))
 
     # %%[markdown]
+    # ---
+    # ---
     # # Le modèle structurel de la demande
     # Sur le marché $t$, le consommateur $i$ choisit entre les voitures de $J$ marques $1, ..., J$ et dispose également d'une option extérieure $0$ (c’est-à-dire ne pas acheter de voiture). L’utilité indirecte qui décrit les préférences du consommateur est donnée par :
     # $$
@@ -97,6 +99,8 @@ if __name__ == "__main__":
     # - Approximation plus flexible de $\mathbb{E}[P_{jt} \mid X_{t}, Z_{jt}]$ pour relâcher l’hypothèse de linéarité, en utilisant des mesures de performance hors échantillon
 
     # %%[markdown]
+    # ---
+    # ---
     # # Estimation de l'equation (3) par MCO sans remplacer $P_{jt}$ par $\hat{P}_{jt}$
 
     # Voici le probleme de moindres carres a resoudre:
@@ -112,26 +116,27 @@ if __name__ == "__main__":
         test_size=model_config['base_model']['test_size'],
         random_state=model_config['base_model']['random_state'],
     )
-
+    # %%
     OLS_base._train_test_split(
         final_df
     )
+    # %%# %%
     
     OLS_base.train(
         OLS_base.X_train,
         OLS_base.y_train
     )
-    
+   # %% 
     prediction = OLS_base._predict(
         OLS_base.X_test, 
         OLS_base.feature_cols
     )
-    
+    # %%
     OLS_base.evaluate(
         OLS_base.y_test, 
         prediction
     )
-    
+    # %%
     OLS_base.regression_summary(
         OLS_base.model,
         OLS_base.X_test,
@@ -171,7 +176,7 @@ if __name__ == "__main__":
 
     prediction_lasso = lasso_model._predict(lasso_model.X_test)
     lasso_model.plot_true_predicted(lasso_model.y_test, prediction_lasso)
-    l=gigu
+
     # %%
     # Set the MLflow tracking URI to localhost with the desired port (e.g., 5000)
     import mlflow
