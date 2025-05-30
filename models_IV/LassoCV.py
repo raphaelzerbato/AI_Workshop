@@ -74,7 +74,7 @@ class LassoCVModel(BaseModel):
         
         plt.plot(log_alphas, mean_mse, label='Mean CV MSE', marker='o')
         plt.fill_between(log_alphas, mean_mse - std_mse, mean_mse + std_mse, color='lightgray', label='±1 std dev')
-        plt.axvline(np.log2(self.model.best_alpha), linestyle='--', color='red', label=f'Best lambda = {self.model.best_alpha:.5f}')
+        plt.axvline(np.log2(self.best_alpha), linestyle='--', color='red', label=f'Best lambda = {self.best_alpha:.5f}')
         plt.xlabel('Log2(Alpha)')
         plt.xlabel('Log2(Alpha)')
         plt.ylabel('Mean Squared Error (CV)')

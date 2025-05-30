@@ -19,16 +19,14 @@ def init_data_preprocessing(data_config, cars_db):
         market_vars = data_config['var_of_interest']['marketvar'],
         minsize = data_config['minisize_of_market'])
 
+    # %%
     # preprocess color and interior
-    df = dp.preprocess_color_interior(df)    
-
-    # exctract variables of intrest
+    df = dp.preprocess_color_interior(df)
+    # %%
+    # exctract variables of interest
     df = dp.subset_var_of_interest(df,
     data_config['var_of_interest']['numerical'] + data_config['var_of_interest']['unordered'], 
     marketvar = 'marketid', productvar = data_config['var_of_interest']['productvar'])
-    
-    # preprocess color and interio
-    df = dp.preprocess_color_interior(df)
 
     # %%
     # preprocess categorical variables

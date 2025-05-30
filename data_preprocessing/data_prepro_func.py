@@ -133,7 +133,7 @@ def recode_categories(series:pd.Series, replacement_mask=dict(), min_frequency=1
     frequencies = s.value_counts()
 
     popular_values = set(frequencies[frequencies>= min_frequency].index)-{''}
-    s = s.map(lambda x: x if x in popular_values else 'other')
+    s = s.map(lambda x: x if pd.isna(x) or x in popular_values else 'other')
     s = pd.Categorical(s, ordered = ordered_serie)
     return s
     
@@ -233,15 +233,18 @@ def update_list(lst, new_items_add, item_to_remove=None):
     return lst
 
 
-def preprocess_color_interior(df):
+def preprocess_color_interior(data):
     """
     Preprocess the 'color' and 'interior' columns in the DataFrame.
     """
+    df = data.copy()
     for var in ['color', 'interior']:
         if var in df.columns:
-            color_table = df[var].value_counts()
-            popular_colors = set(color_table[color_table>=10000].index)-{'—'}
-            df[var] = df[var].map(lambda x: x if x in popular_colors else 'other')
+            # Folowing lines in  comment already taken care of by recode_categories
+            #color_table = df[var].value_counts()
+            #popular_colors = set(color_table[color_table>=10000].index)-{'—'}
+            #df[var] = df[var].map(lambda x: x if x in popular_colors else 'other')
+            df[var] = df[var].replace({'—':pd.NA})
     return df     
 
 def change_to_numerical(data, numerical):
@@ -253,19 +256,36 @@ def change_to_numerical(data, numerical):
         df[var] = df[var].astype('float')    
     return df
 
+def remove_duplicates_keep_order(lst):
+    """
+    Remove duplicates from a list of strings while keeping the order
+    """
+    seen = set()
+    result = []
+    for item in lst:
+        if item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result
+
 def subset_var_of_interest(data, var_of_interest, marketvar='marketid', productvar='make', DropNa=True):
     """
     Subset the data to keep only the variables of interest
     """
-    # Ensure no duplicate names in the list
-    relevant_vars = list(set([marketvar, productvar, 'state'] + var_of_interest))
-    
+
     df = data.copy()
+
+    # Ensure no duplicate names in the list 
+    #relevant_vars = list(set([marketvar, productvar, 'state'] + var_of_interest))
+
+    # Ensure no duplicate names in the list while preserving order of variables in var_of_interest
+    # the couple (marketvar, productvar) is our row data identifier but marketvar or productvar could also be part of the var_of_interest
+    relevant_vars = remove_duplicates_keep_order([marketvar, productvar, 'state'] + var_of_interest)
     print('\nNumber of missing per relevant variable in the remaining dataframe \n', np.sum(df.isna(), axis=0))
+    df = df[relevant_vars]
     if DropNa:
         print(f"\nA total of {np.sum(np.any(df.isna(), axis=1))} rows with missing data in relevant variables have been dropped \n")
-        df = df.dropna()
-    df = df[relevant_vars]
+        df = df.dropna() #drop missing only on selected variables
     return df
 
 def load_prepro_pop_data(data_config):
