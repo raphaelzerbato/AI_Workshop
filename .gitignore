@@ -11,3 +11,4 @@ __pycache__/
 .venv
 .DS_Store mlflow==2.14.0rc0
 mlruns/
+.html
