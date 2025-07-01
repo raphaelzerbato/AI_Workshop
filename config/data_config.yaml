@@ -1,6 +1,6 @@
 # This is a configuration file for data processing in a machine learning project.
 loading_path_data:
-  data_cars: '/Users/colin/Library/CloudStorage/OneDrive-UniversitedeMontreal/On_Going_Studies/IVADO_Project/AI_Workshop/car_prices.csv'
+  data_cars: '/Users/colin/Library/CloudStorage/OneDrive-UniversitedeMontreal/On_Going_Studies/IVADO_Project/car_prices.csv'
   data_population: '/Users/colin/Library/CloudStorage/OneDrive-UniversitedeMontreal/On_Going_Studies/IVADO_Project/states_populations_yr2015.csv'
 
 # Prepare minimum frequencies for the extract_relevant_variables function

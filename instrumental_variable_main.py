@@ -160,9 +160,9 @@ if __name__ == "__main__":
     #$$\min_{\gamma} \sum_{j,t} \left(P_{jt} - (X_{jt}^{T}, Z_{jt}^{T})\gamma \right)^{2} + \lambda \left(\alpha \sum_{k}|\gamma_{k}| +  (1-\alpha)\sum_{k}\gamma_{k}^{2}\right)$$
     #Les regularisation de Lasso ($\alpha=1$) et Ridge ($\alpha=0$) sont des cas particuliers
     # %%
-    from models_IV.LassoCV2 import LassoCVModel
+    from models_IV.lasso_cv_model import LassoCVModel2
     
-    lasso_model = LassoCVModel(
+    lasso_model = LassoCVModel2(
         target_col='sellingprice',
         feature_cols=instrument_vars + exogenous_var,
         unpenalized_cols=exogenous_var,
