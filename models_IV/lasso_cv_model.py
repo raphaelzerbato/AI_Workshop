@@ -105,8 +105,12 @@ class LassoCVModel2(LassoCVModel):
     """
     LassoCVModel2 extends LassoCVModel to handle both penalized and unpenalized features.
     It uses LassoCV for penalized features and OLS for unpenalized features, in a FWL two-step process:
-    1. Fit the target on penalized features using LassoCV.
-    2. Compute residuals from LassoCV and fit these residuals on unpenalized features using OLS.
+    1. Fit the target on unpenalized features (with intercept) using OLS.
+    2. Compute residuals from OLS and fit these residuals on penalized features using LassoCV.
+        Following FWL theorem, the estimated coefficients are the ones to keep as final coefficients for penalized features.
+    3. Fit the target on the selected penalized features (i.e. penalized features with non-zero coefs from the previous step) using OLS 
+    4. Compute residuals and fit these residuals on unpenalized features using OLS.
+        Following FWL theorem, the estimated coefficients are the ones to keep as final coefficients for unpenalized features.
     """
 
     def __init__(
