@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score, mean_squared_error
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 class BaseModel(ABC):
      
@@ -50,16 +53,28 @@ class BaseModel(ABC):
     def _predict(self, X):
         pass
 
-    @abstractmethod
-    def evaluate(self, X, y):
-        """
-        Abstract method to evaluate the model.
+    def evaluate(self, X_train, y_train, X_test, y_test):
+        self.y_train_pred = self._predict(X_train)
+        self.y_test_pred = self._predict(X_test)
 
-        Parameters:
-            X (pandas.DataFrame): Input features for evaluation.
-            y (pandas.Series): True labels for evaluation.
-
-        Returns:
-            Evaluation metrics (type depends on implementation).
+        metrics = {
+            "Train MSE": mean_squared_error(y_train, self.y_train_pred),
+            "Test MSE": mean_squared_error(y_test, self.y_test_pred),
+            "Train R^2": r2_score(y_train, self.y_train_pred),
+            "Test R^2": r2_score(y_test, self.y_test_pred)
+        }
+        return metrics
+    
+    def plot_true_predicted(self, Y_true, Y_pred, ModelName = "", VarName=""):
         """
-        pass
+        Scatter plot of true vs predicted values
+        """
+        r2 = r2_score(Y_true, Y_pred)
+        sns.scatterplot(x=Y_true, y=Y_pred)
+        plt.plot(Y_true, Y_true, linestyle='--', color='gray')
+        plt.xlabel(f"True {VarName}")
+        plt.ylabel(f"Predicted {VarName}")
+        plt.title(f"{ModelName} Predictions\n(R² = {round(r2, 4)})")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()

@@ -139,7 +139,7 @@ if __name__ == "__main__":
         OLS_base.y_test, 
         prediction
     )
-
+ 
     OLS_base.compute_covariance_matrix(   
         OLS_base.X_train,
         OLS_base.y_train
@@ -151,6 +151,11 @@ if __name__ == "__main__":
         OLS_base.y_test,
         feature_names=OLS_base.feature_cols
     )
+
+    OLS_base.plot_true_predicted(
+        OLS_base.y_test, prediction,
+        ModelName="OLS", VarName="log_share_ratio"
+        )
 
 
     # %%[markdown]
@@ -180,13 +185,15 @@ if __name__ == "__main__":
     lasso_model.train(lasso_model.X_train, lasso_model.y_train)
     
     metrics = lasso_model.evaluate(lasso_model.X_train, lasso_model.y_train, lasso_model.X_test, lasso_model.y_test)
-    
     print(metrics)
     lasso_model.plot_cv_path()
     print(lasso_model.coefs)
 
     prediction_lasso = lasso_model._predict(lasso_model.X_test)
-    lasso_model.plot_true_predicted(lasso_model.y_test, prediction_lasso)
+    lasso_model.plot_true_predicted(
+        lasso_model.y_test, prediction_lasso,
+        ModelName="LassoCV", VarName="sellingprice"
+    )
 
 
     # %%
@@ -211,13 +218,49 @@ if __name__ == "__main__":
     # %%
     rf_model.train(rf_model.X_train, rf_model.y_train)
 
-    metrics = rf_model.evaluate(rf_model.X_train, rf_model.y_train, rf_model.X_test, rf_model.y_test)
-
+    metrics = rf_model.evaluate(
+        rf_model.X_train, rf_model.y_train, 
+        rf_model.X_test, rf_model.y_test
+        )
     print(metrics)
-
     prediction_rf = rf_model._predict(rf_model.X_test)
-    rf_model.plot_true_predicted(rf_model.y_test, prediction_rf)
+    rf_model.plot_true_predicted(
+        rf_model.y_test, prediction_rf,
+        ModelName="RandomForest", VarName="sellingprice"
+    )
+
+
+    # %%
+    from models_IV.XGBoost import XGBoostModel
+    xgb_model = XGBoostModel(
+        target_col='sellingprice',
+        feature_cols=instrument_vars + exogenous_var,
+        test_size=model_config['base_model']['test_size'],
+        random_state=model_config['base_model']['random_state'],
+        # parameters for XGBRegressor
+        eval_metric=model_config['xgboost']['eval_metric'],
+        n_estimators=model_config['xgboost']['n_estimators'],
+        max_depth=model_config['xgboost']['max_depth'],
+        learning_rate=model_config['xgboost']['learning_rate'],
+        subsample=model_config['xgboost']['subsample'],
+        colsample_bytree=model_config['xgboost']['colsample_bytree'],
+        use_label_encoder=model_config['xgboost']['use_label_encoder']
+        )
     
+    xgb_model._train_test_split(final_df)
+    # %%
+    xgb_model.train(xgb_model.X_train, xgb_model.y_train)
+    metrics = xgb_model.evaluate(
+        xgb_model.X_train, xgb_model.y_train,
+        xgb_model.X_test, xgb_model.y_test
+        )
+    print(metrics)
+    prediction_xgb = xgb_model._predict(xgb_model.X_test)
+    xgb_model.plot_true_predicted(
+        xgb_model.y_test, prediction_xgb,
+        ModelName="XGBoost", VarName="sellingprice"
+        )
+
         
     # %% [markdown]
     # ---

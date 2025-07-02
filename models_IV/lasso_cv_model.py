@@ -53,18 +53,6 @@ class LassoCVModel(BaseModel):
         X_scaled = self.scaler.transform(X)
         return self.model.predict(X_scaled)
 
-    def evaluate(self, X_train, y_train, X_test, y_test):
-        y_train_pred = self._predict(X_train)
-        y_test_pred = self._predict(X_test)
-
-        metrics = {
-            "Train MSE": mean_squared_error(y_train, y_train_pred),
-            "Test MSE": mean_squared_error(y_test, y_test_pred),
-            "Train R^2": r2_score(y_train, y_train_pred),
-            "Test R^2": r2_score(y_test, y_test_pred)
-        }
-
-        return metrics
 
     def plot_cv_path(self):
         # Plot CV MSE vs log(alpha)
@@ -85,31 +73,17 @@ class LassoCVModel(BaseModel):
         plt.show()
 
 
-    def plot_true_predicted(self, Y_true, Y_pred, VarName=""):
-        """
-        Show scatter plot of two pd.Series: Y_true in x-axis, Y_pred in y-axis
-        """
-        r2 = r2_score(Y_true, Y_pred)
-
-        sns.scatterplot(x=Y_true, y=Y_pred)
-        plt.plot(Y_true, Y_true, linestyle='--', color='gray')
-        plt.xlabel(f"True {VarName}")
-        plt.ylabel(f"Predicted {VarName}")
-        plt.title(f"Prediction with CV Lasso\n(R² = {round(r2, 4)})")
-        plt.show()
-
-
 
 class LassoCVModel2(LassoCVModel):
 
     """
     LassoCVModel2 extends LassoCVModel to handle both penalized and unpenalized features.
     It uses LassoCV for penalized features and OLS for unpenalized features, in a FWL two-step process:
-    1. Fit the target on unpenalized features (with intercept) using OLS.
-    2. Compute residuals from OLS and fit these residuals on penalized features using LassoCV.
+    1. Fit the target on unpenalized features using OLS (without intercept).
+    2. Compute residuals from OLS and fit these residuals on penalized features using LassoCV (with intercept).
         Following FWL theorem, the estimated coefficients are the ones to keep as final coefficients for penalized features.
-    3. Fit the target on the selected penalized features (i.e. penalized features with non-zero coefs from the previous step) using OLS 
-    4. Compute residuals and fit these residuals on unpenalized features using OLS.
+    3. Fit the target on the selected penalized features (i.e. penalized features with non-zero coefs from the previous step) using OLS (with intercept) 
+    4. Compute residuals and fit these residuals on unpenalized features using OLS (without intercept).
         Following FWL theorem, the estimated coefficients are the ones to keep as final coefficients for unpenalized features.
     """
 
