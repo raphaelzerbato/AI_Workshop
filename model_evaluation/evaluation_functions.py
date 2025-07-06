@@ -1,10 +1,10 @@
 import scipy.stats as stats
 import pandas as pd
 import numpy as np
-from statsmodels.regression.linear_model import LinearModel
+from models_IV.OLS import LinearModel
 import matplotlib.pyplot as plt
 
-def delta_method_ratio_pvalue(var1:str, var2:str, params:pd.DataFrame, cov:float) -> float:
+def delta_method_ratio_pvalue(var1:str, var2:str, params:pd.DataFrame, cov:pd.DataFrame) -> float:
 
     """
     Compute the p-value of a ratio statistic  params[var1]/params[var2] using the Delta Method approximation of its variance
@@ -40,7 +40,7 @@ def delta_method_ratio_pvalue(var1:str, var2:str, params:pd.DataFrame, cov:float
 
     return pvalue
 
-def demande_evaluation(trained_OLS_model, exogenous_prediction=None):
+def demand_evaluation(OLS_model, exogenous_prediction=None, price_variable='sellingprice'):
 
     """
     OLS-estimate a demand model with a simple logit specification, i.e.
@@ -49,7 +49,7 @@ def demande_evaluation(trained_OLS_model, exogenous_prediction=None):
     Arguments:
         - X_train (pd.DataFrame): matrix of regressors, including the 'sellingprice' column
         - Y_train (pd.Series): dependent variable column, Log(S) - Log(S_o)
-        - price_train_predicted (None or pd.Series): an exogenous prediction of the 'sellingprice' column
+        - exogenous_prediction (None or pd.Series): an exogenous prediction of the 'sellingprice' column
             - if pd.Series, then the 'sellingprice' column in X_train will be replaced by price_train_predicted before estimation
                 - the resulting econometric method is a 2SLS where the price is endogenous
             - if None, then the 'sellingprice' column in X_train remains unchanged
@@ -65,39 +65,40 @@ def demande_evaluation(trained_OLS_model, exogenous_prediction=None):
     Note:
         - the willingness to pay associated with a product attribute k in X is the ratio between the coef of k and the coef of the 'sellingprice' column
     """
-    from statsmodels.regression.linear_model import LinearModel
-    
-    X_train_new = trained_OLS_model.X_train.copy()
-
+   
     if not np.all(exogenous_prediction == None):
-        X_train_new[exogenous_prediction.name] = exogenous_prediction
+        OLS_model.X_train[exogenous_prediction.name] = np.array(exogenous_prediction)
 
-    trained_OLS_model.train(X_train_new, trained_OLS_model.y_train)
+    OLS_model.train(OLS_model.X_train, OLS_model.y_train)
 
-    Y_train_pred = trained_OLS_model.model._predict(X_train_new)
+    Y_train_pred = OLS_model._predict(OLS_model.X_train, OLS_model.feature_cols)
 
-    IV2_steps = trained_OLS_model.copy()
-
-    wtp_values = compute_wtp_pvalues(
-        IV2_steps, 
-        target_variable='sellingprice'
+    OLS_model.varcovar_mat = OLS_model.compute_covariance_matrix(
+        OLS_model.X_train,
+        OLS_model.y_train
     )
 
-    IV2_steps.X_train = X_train_new
-
-    IV2_steps.compute_pvalues(
-        IV2_steps,
-        IV2_steps.X_train,
-        IV2_steps.y_train
+    wtp_pvalues = compute_wtp_pvalues(
+        OLS_model, 
+        price_variable=price_variable
     )
-    # Merge coefs, WTP (willingness to pay) and their pvalues
-    coefs = pd.concat([coefs, IV2_steps.pvalues,  coefs/np.abs(coefs['sellingprice']), wtp_values], axis=1)
-    coefs.columns = ['coef','coef-pvalue','wtp','wtp-pvalue']
+
+    OLS_model.compute_pvalues(
+        OLS_model.X_train,
+        OLS_model.y_train
+    )
+   # Get coefficients and intercept
+    coef_series = pd.Series(OLS_model.model.coef_, index=OLS_model.X_train.columns)
+    coefs_with_intercept = pd.concat([pd.Series({'Intercept': OLS_model.model.intercept_}), coef_series])
  
-    return IV2_steps, coefs, Y_train_pred
+    # Merge coefs, WTP (willingness to pay) and their pvalues
+    coefs = pd.concat([coefs_with_intercept, OLS_model.pvalues,  coefs_with_intercept/np.abs(coefs_with_intercept['sellingprice']), wtp_pvalues], axis=1)
+    coefs.columns = ['coef','coef-pvalue','wtp','wtp-pvalue']
+
+    return OLS_model, coefs, Y_train_pred
 
 
-def demande_evaluation_LASSO(trained_LASSO_model, exogenous_prediction=None):
+def demand_evaluation_LASSO(trained_LASSO_model, exogenous_prediction=None):
 
     """
     OLS-estimate a demand model with a simple logit specification, i.e.
@@ -122,7 +123,6 @@ def demande_evaluation_LASSO(trained_LASSO_model, exogenous_prediction=None):
     Note:
         - the willingness to pay associated with a product attribute k in X is the ratio between the coef of k and the coef of the 'sellingprice' column
     """
-    from statsmodels.regression.linear_model import LinearModel
     
     X_train_new = trained_LASSO_model.X_train.copy()
     y_train_new = trained_LASSO_model.y_train.copy()
@@ -152,7 +152,7 @@ def demande_evaluation_LASSO(trained_LASSO_model, exogenous_prediction=None):
         IV2_steps.feature_cols
     )
 
-    wtp_values = compute_wtp_pvalues(
+    wtp_pvalues = compute_wtp_pvalues(
         IV2_steps, 
         target_variable='sellingprice'
     )
@@ -162,14 +162,18 @@ def demande_evaluation_LASSO(trained_LASSO_model, exogenous_prediction=None):
         IV2_steps.X_train,
         IV2_steps.y_train
     )
+    # Get coefficients and intercept
+    coef_series = pd.Series(IV2_steps.model.coef_, index=IV2_steps.X_train.columns)
+    coefs_with_intercept = pd.concat([pd.Series({'Intercept': IV2_steps.model.intercept_}), coef_series])
+ 
     # Merge coefs, WTP (willingness to pay) and their pvalues
-    coefs = pd.concat([coefs, IV2_steps.pvalues,  coefs/np.abs(coefs['sellingprice']), wtp_values], axis=1)
+    coefs = pd.concat([coefs_with_intercept, IV2_steps.pvalues,  coefs_with_intercept/np.abs(coefs_with_intercept['sellingprice']), wtp_pvalues], axis=1)
     coefs.columns = ['coef','coef-pvalue','wtp','wtp-pvalue']
  
     return IV2_steps, coefs, Y_train_pred
 
 
-def compute_wtp_pvalues(linear_model:LinearModel, target_variable='sellingprice') -> pd.Series:
+def compute_wtp_pvalues(linear_model:LinearModel, price_variable='sellingprice') -> pd.Series:
     # il faut que je change target variable pour que cela soit un attribut
     """
     Compute the p-values of the willingness to pay (WTP) for each product attribute in coefs
@@ -180,6 +184,9 @@ def compute_wtp_pvalues(linear_model:LinearModel, target_variable='sellingprice'
 
     Returns:
         - WTP_pvalue (pd.Series): series with p-values of the WTP for each product attribute
+    
+    Note:
+        - The linear_model.varcovar_mat should have been computed before calling this function
     """
     #### NEEDS TO BE EXTENDED TO HANDLE OTHER TYPES OF OLS MODELS FROM STATS MODELS ####
     if linear_model.varcovar_mat is None or linear_model.varcovar_mat.empty:
@@ -189,26 +196,25 @@ def compute_wtp_pvalues(linear_model:LinearModel, target_variable='sellingprice'
         )
     # Get coefficients and intercept
     coefs = pd.Series(linear_model.model.coef_, index=linear_model.X_train.columns)
-    coefs_with_intercept = pd.concat([pd.Series({'const': linear_model.model.intercept_}), coefs])
+    coefs_with_intercept = pd.concat([pd.Series({'Intercept': linear_model.model.intercept_}), coefs])
  
-    cov = linear_model.varcovar_mat()
+    cov = linear_model.varcovar_mat
     WTP_pvalue = pd.Series(index=coefs_with_intercept.index, dtype=float)
 
     for var in coefs.index:
-        if var != target_variable:
-            WTP_pvalue[var] = delta_method_ratio_pvalue(var, target_variable, coefs, cov)
+        if var != price_variable:
+            WTP_pvalue[var] = delta_method_ratio_pvalue(var, price_variable, coefs, cov)
 
     return WTP_pvalue
 
-def plot_coefs(linear_model, pvalue_series, titlename):
+def plot_coefs(coef_series, pvalue_series, titlename):
 
     """
     Shows a graph, in annotated bar plots, of observed values of a vector-valued statistic with the corresponding pvalues
+    This function is used to visualize the coefficients of a linear model and their p-values,
+    It's also used to visualize wtp statistics and their p-values
     """
-    # Get coefficients and intercept
-    coef_series = pd.Series(linear_model.model.coef_, index=linear_model.X_train.columns)
-    coefs_with_intercept = pd.concat([pd.Series({'const': linear_model.model.intercept_}), coefs])
- 
+  
     # pvalue_stars
     pvalue_stars_series = pvalue_series.map(
         lambda x: '****' if x<0.001 else ('***' if x<0.01 else ('  **' if x<0.05 else ('   *' if x<0.1 else '      ')))

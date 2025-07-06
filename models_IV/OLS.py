@@ -55,18 +55,27 @@ class LinearModel(BaseModel):
         Returns:
         cov_matrix (pd.DataFrame): Covariance matrix of the model parameters.
         """
-        n, k = X_train.shape
+
+        # Add intercept manually if the model includes it
+        if self.model.fit_intercept:
+            X = np.column_stack((np.ones(X_train.shape[0]), X_train))
+            feature_names = ['Intercept'] + list(getattr(self.model, 'feature_names_in_', [f"x{i}" for i in range(X.shape[1])]))
+        else:
+            X = np.array(X_train)
+            feature_names =  + list(getattr(self.model, 'feature_names_in_', [f"x{i}" for i in range(X.shape[1])]))
+
+        n, k = X.shape
         y_pred = self.model.predict(X_train)
         residuals = y_train - y_pred
         RSS = np.sum(residuals ** 2)
         
         # Compute covariance matrix
-        XtX_inv = np.linalg.inv(X_train.T @ X_train)
-        cov_matrix = RSS / (n - k) * XtX_inv
+        XtX_inv = np.linalg.inv(X.T @ X)
+        cov_matrix = (RSS / (n - k)) * XtX_inv
         self.varcovar_mat = pd.DataFrame(
             cov_matrix,
-            index=self.model.feature_names_in_, 
-            columns=self.model.feature_names_in_
+            index=feature_names, 
+            columns=feature_names
             )
         
         return self.varcovar_mat
@@ -85,10 +94,11 @@ class LinearModel(BaseModel):
         """
         # Add intercept manually if the model includes it
         if self.model.fit_intercept:
-            X = np.column_stack((np.ones(X.shape[0]), X))
-            feature_names = ['Intercept'] + list(getattr(self.model, 'feature_names_in_', [f"x{i}" for i in range(X.shape[1]-1)]))
+            X = np.column_stack((np.ones(X_train.shape[0]), X_train))
+            feature_names = ['Intercept'] + list(getattr(self.model, 'feature_names_in_', [f"x{i}" for i in range(X.shape[1])]))
         else:
-            feature_names = list(getattr(self.model, 'feature_names_in_', [f"x{i}" for i in range(X.shape[1])]))
+            X = np.array(X_train)
+            feature_names =  list(getattr(self.model, 'feature_names_in_', [f"x{i}" for i in range(X.shape[1])]))
 
         # Predictions and residuals
         y_pred = self.model.predict(X_train)

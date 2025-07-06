@@ -169,7 +169,7 @@ if __name__ == "__main__":
     
     lasso_model = LassoCVModel2(
         target_col='sellingprice',
-        feature_cols=instrument_vars + exogenous_var,
+        feature_cols=exogenous_var + instrument_vars,
         unpenalized_cols=exogenous_var,
         test_size=model_config['base_model']['test_size'],
         random_state=model_config['base_model']['random_state'],
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     
     rf_model = RandomForestModel(
         target_col='sellingprice',
-        feature_cols=instrument_vars + exogenous_var,
+        feature_cols=exogenous_var + instrument_vars,
         test_size=model_config['base_model']['test_size'],
         random_state=model_config['base_model']['random_state'],
         # parameters for RandomForestRegressor
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     from models_IV.XGBoost import XGBoostModel
     xgb_model = XGBoostModel(
         target_col='sellingprice',
-        feature_cols=instrument_vars + exogenous_var,
+        feature_cols= exogenous_var + instrument_vars,
         test_size=model_config['base_model']['test_size'],
         random_state=model_config['base_model']['random_state'],
         # parameters for XGBRegressor
@@ -261,7 +261,46 @@ if __name__ == "__main__":
         ModelName="XGBoost", VarName="sellingprice"
         )
 
-        
+    # %%[markdown]
+    # ---
+    # ---
+    # # Estimation de l'equation de la demande par MCO avec remplacement de $P_{jt}$ par $\hat{P}_{jt}$
+
+    # %%
+    # Run demand regression by simple OLS on the final_df
+    from models_IV.OLS import LinearModel
+    from model_evaluation.evaluation_functions_2 import *
+    # %%
+    IV_linear_demand_model = LinearModel(
+        target_col='log_share_ratio',
+        feature_cols=endogenous_var + exogenous_var + instrument_vars,
+        test_size=model_config['base_model']['test_size'],
+        random_state=model_config['base_model']['random_state'],
+    )
+
+    IV_linear_demand_model._train_test_split(
+        final_df
+    )
+    # %%
+    # Extract training and test regressors for the first stage model (i.e. price prediction model) and the second stage model (demand model). Then update the feature_cols for the IV_linear_demand_model.
+    first_stage_model_X_train = IV_linear_demand_model.X_train[exogenous_var + instrument_vars ]
+    first_stage_model_X_test = IV_linear_demand_model.X_test[exogenous_var + instrument_vars]
+    IV_linear_demand_model.X_train = IV_linear_demand_model.X_train[endogenous_var + exogenous_var]
+    IV_linear_demand_model.X_test = IV_linear_demand_model.X_test[endogenous_var + exogenous_var]
+    IV_linear_demand_model.feature_cols = endogenous_var + exogenous_var
+    # %% 
+    # Get coefs and willingness to pay values and their respective p-values
+    IV_linear_demand_model, demand_coefs, demand_target_pred = demand_evaluation(
+        IV_linear_demand_model,
+        exogenous_prediction=pd.Series(lasso_model._predict(first_stage_model_X_train), name=lasso_model.target_col)
+        )
+        # exogenous_prediction=rf_model._predict(rf_model.X_train),
+   # %% 
+   # plot coefficients and willingness to pay values
+    plot_coefs(demand_coefs['coef'],demand_coefs['coef-pvalue'], titlename='Linear Demand Coefficients')
+    plot_coefs(demand_coefs['wtp'], demand_coefs['wtp-pvalue'], titlename='Willingness to Pay (WTP) Coefficients')
+     # %%   
+
     # %% [markdown]
     # ---
     # ---
@@ -295,8 +334,7 @@ if __name__ == "__main__":
 
     # %%[markdown]
     #---
-    #### Régression de la demande après remplacement du prix par sa prédiction exogène obtenue 
-    # par regression Lasso
+    #### Régression de la demande après remplacement du prix par sa prédiction exogène obtenue par regression Lasso
     # %%
     from model_evaluation.evaluation_functions import *
 

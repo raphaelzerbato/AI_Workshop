@@ -12,7 +12,8 @@ class BaseModel(ABC):
             target_col: str,
             feature_cols: list, 
             test_size: float = 0.2, 
-            random_state: int = 42
+            random_state: int = 42,
+            **extra_init_args
         ):
         
         if not feature_cols:
@@ -21,6 +22,7 @@ class BaseModel(ABC):
         self.feature_cols = feature_cols
         self.test_size = test_size
         self.random_state = random_state
+        self.extra_init_args = extra_init_args
     
     def _train_test_split(self, df, **kwargs):
         X = df[self.feature_cols]
