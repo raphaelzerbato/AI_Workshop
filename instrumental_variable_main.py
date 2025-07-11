@@ -269,7 +269,7 @@ if __name__ == "__main__":
     # %%
     # Run demand regression by simple OLS on the final_df
     from models_IV.OLS import LinearModel
-    from model_evaluation.evaluation_functions_2 import *
+    from model_evaluation.evaluation_functions import *
     # %%
     IV_linear_demand_model = LinearModel(
         target_col='log_share_ratio',
@@ -292,7 +292,7 @@ if __name__ == "__main__":
     # Get coefs and willingness to pay values and their respective p-values
     IV_linear_demand_model, demand_coefs, demand_target_pred = demand_evaluation(
         IV_linear_demand_model,
-        exogenous_prediction=pd.Series(lasso_model._predict(first_stage_model_X_train), name=lasso_model.target_col)
+        exogenous_prediction=pd.Series(xgb_model._predict(first_stage_model_X_train), name=xgb_model.target_col)
         )
         # exogenous_prediction=rf_model._predict(rf_model.X_train),
    # %% 
@@ -428,5 +428,3 @@ if __name__ == "__main__":
 
     result[:4]
 
-
-        

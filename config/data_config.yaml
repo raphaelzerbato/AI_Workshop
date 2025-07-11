@@ -154,4 +154,4 @@ var_of_interest:
 minisize_of_market : 20
 
 instrument_creation:
-  twodegree_polynomial_instruments: False
+  twodegree_polynomial_instruments: True

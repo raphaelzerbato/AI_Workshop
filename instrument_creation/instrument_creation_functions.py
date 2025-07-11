@@ -3,9 +3,9 @@ all key functions for instrument creation
 """
 import numpy as np
 import pandas as pd
-from itertools import product
+from itertools import product, combinations_with_replacement
 
-def extract_instruments(df, exogvars, marketvar, twodegree_polynomial_instruments):
+def extract_instruments_slow(df, exogvars, marketvar, twodegree_polynomial_instruments):
     """
     Extract instruments for the model.
     The number of other products in the same market.
@@ -47,6 +47,104 @@ def extract_instruments(df, exogvars, marketvar, twodegree_polynomial_instrument
             )), include_groups=False
         ).reset_index(drop=True).drop(exogvars, axis=1)
     return Z
+
+def extract_instruments_slow_2(data, exogvars, marketvar='marketid', twodegree_polynomial_instruments=False):
+
+    """
+    compute sum of polynomial basis functions of rival products' characteristics in exogvars.
+    """
+    
+    df = data.copy()
+    X = df[exogvars].values
+    base = pd.DataFrame(index=df.index)
+
+    # Basic group sums
+    group_sum = df.groupby(marketvar)[exogvars].transform('sum')
+    group_size = df.groupby(marketvar)[exogvars[0]].transform('count')
+    base['Nb_RivalProducts'] = group_size - 1
+
+    for i, var in enumerate(exogvars):
+        base[f'{var}_RivalProducts'] = group_sum[var] - df[var]
+
+    if twodegree_polynomial_instruments:
+        # compute outer products for all rows
+        # Result: (n_samples, n_combinations)
+        combs = list(combinations_with_replacement(range(len(exogvars)), 2))
+        n_combs = len(combs)
+        prod_matrix = np.empty((len(df), n_combs))
+
+        for k, (i, j) in enumerate(combs):
+            prod_matrix[:, k] = X[:, i] * X[:, j]
+
+        # attach to DataFrame for groupby
+        prod_df = pd.DataFrame(prod_matrix, columns=[f'{exogvars[i]}*{exogvars[j]}' for i, j in combs], index=df.index)
+        prod_df[marketvar] = df[marketvar].values
+
+        # groupby sum once
+        group_prod_sum = prod_df.groupby(marketvar).transform('sum')
+        prod_df.drop(columns=marketvar, inplace=True)
+
+        # rival = group sum - own value
+        rival_prod = group_prod_sum - prod_df
+
+        # Rename columns
+        rival_prod.columns = [col + '_RivalProducts' for col in rival_prod.columns]
+
+        base = pd.concat([base, rival_prod], axis=1)
+
+    return base
+
+def extract_instruments(
+    data, exogvars, marketvar='marketid', twodegree_polynomial_instruments=False
+):
+    """
+    Faster version: computes sum of polynomial basis functions of rival products' characteristics.
+    """
+
+    df = data.copy()
+    X = df[exogvars].to_numpy()
+    base = pd.DataFrame(index=df.index)
+
+    # Basic sums
+    group_sum = df.groupby(marketvar)[exogvars].transform('sum')
+    group_size = df.groupby(marketvar)[exogvars[0]].transform('count')
+    base['Nb_RivalProducts'] = group_size - 1
+
+    for var in exogvars:
+        base[f'{var}_RivalProducts'] = group_sum[var] - df[var]
+
+    if twodegree_polynomial_instruments:
+        # Efficient outer products with broadcasting
+        n, k = X.shape
+        combs = list(combinations_with_replacement(range(k), 2))
+        comb_labels = []
+
+        prods = []
+        for i, j in combs:
+            prods.append(X[:, i] * X[:, j])
+            comb_labels.append(f"{exogvars[i]}*{exogvars[j]}")
+
+        prod_matrix = np.column_stack(prods)
+
+        # Make DataFrame once
+        prod_df = pd.DataFrame(prod_matrix, columns=comb_labels, index=df.index)
+        prod_df[marketvar] = df[marketvar].values
+
+        # Grouped sum (the group_sum won't have 'marketid')
+        group_prod_sum = prod_df.groupby(marketvar).transform('sum')
+
+        # Only drop 'marketid' from prod_df, because it's only in there
+        prod_df_only = prod_df.drop(columns=marketvar)
+
+        # Rival sum = group sum - own value
+        rival_prod = group_prod_sum - prod_df_only
+
+        rival_prod.columns = [col + '_RivalProducts' for col in rival_prod.columns]
+
+        base = pd.concat([base, rival_prod], axis=1)
+
+    return base
+
 
 ### im here
 def reduce_to_full_rank(A, tol=1e-10):
