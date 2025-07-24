@@ -99,7 +99,7 @@ def demand_evaluation(OLS_model, exogenous_prediction=None, price_variable='sell
 
 
 def demand_evaluation_LASSO(trained_LASSO_model, exogenous_prediction=None):
-
+    
     """
     OLS-estimate a demand model with a simple logit specification, i.e.
     Log(S) - Log(S_o) = X'Betax + Betap*P + epsilon
